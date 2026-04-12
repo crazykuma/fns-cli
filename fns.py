@@ -15,7 +15,7 @@ if sys.platform == "win32":
 
 import click
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 # Config directory: ~/.config/fns-cli/ (cross-platform, consistent with other CLI tools)
 CONFIG_DIR = Path.home() / ".config" / "fns-cli"
