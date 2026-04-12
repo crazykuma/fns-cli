@@ -68,6 +68,8 @@ fns append "daily/2024-05-20.md" "- [x] 完成任务 A"
 使用 `@` 前缀上传你机器上的本地文件。
 ```bash
 fns write "backup/会议记录.md" @/path/to/notes.txt
+# append 同样支持 @ 前缀
+fns append "daily/2024-05-20.md" @/path/to/todo-list.md
 ```
 
 ### 5. 配置 Vault (可选)

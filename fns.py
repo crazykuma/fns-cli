@@ -2,6 +2,8 @@
 """Fast Note Sync (FNS) CLI - Interact with your Obsidian FNS service from terminal."""
 import os, sys, json, subprocess
 from pathlib import Path
+from urllib.parse import urlencode
+from datetime import datetime, timezone
 
 CONFIG_DIR = Path.home() / ".config" / "fns-cli"
 CONFIG_FILE = CONFIG_DIR / "config.json"
@@ -9,6 +11,16 @@ TOKEN_FILE = Path.home() / ".fns_token"
 
 DEFAULT_BASE_URL = ""  # Configure via 'fns config url'
 DEFAULT_VAULT = "Main"
+
+def format_timestamp(ts_ms):
+    """Convert millisecond Unix timestamp to human-readable local time."""
+    if not ts_ms:
+        return ""
+    try:
+        dt = datetime.fromtimestamp(int(ts_ms) / 1000, tz=timezone.utc).astimezone()
+        return dt.strftime("%Y-%m-%d %H:%M:%S")
+    except (ValueError, OSError, OverflowError):
+        return str(ts_ms)
 
 def load_config():
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
@@ -35,8 +47,7 @@ def curl_request(method, endpoint, params=None, json_data=None):
     
     url = f"{base_url}{endpoint}"
     if params:
-        qs = "&".join(f"{k}={v}" for k, v in params.items())
-        url += f"?{qs}"
+        url += f"?{urlencode(params)}"
     
     cmd = ["curl", "-s", "-X", method, url,
            "-H", f"Authorization: Bearer {get_token()}"]
@@ -93,8 +104,16 @@ def cmd_read(path):
         print(f"❌ Unexpected response: {json.dumps(data, indent=2, ensure_ascii=False)}")
 
 def cmd_write(path, content_or_file):
-    if Path(content_or_file).exists():
-        content = Path(content_or_file).read_text()
+    # Support @file.txt prefix for local file upload
+    if content_or_file.startswith("@"):
+        file_path = content_or_file[1:]
+        if Path(file_path).exists():
+            content = Path(file_path).read_text(encoding="utf-8")
+        else:
+            print(f"❌ File not found: {file_path}")
+            return
+    elif Path(content_or_file).exists():
+        content = Path(content_or_file).read_text(encoding="utf-8")
     else:
         content = content_or_file
     data = curl_request("POST", "/note", json_data={"vault": load_config()["vault"], "path": path, "content": content})
@@ -104,8 +123,14 @@ def cmd_write(path, content_or_file):
         print(f"❌ Failed to write: {json.dumps(data, indent=2, ensure_ascii=False)}")
 
 def cmd_append(path, content):
-    if Path(content).exists():
-        content = Path(content).read_text()
+    # Support @file.txt prefix for local file upload
+    if content.startswith("@"):
+        file_path = content[1:]
+        if Path(file_path).exists():
+            content = Path(file_path).read_text(encoding="utf-8")
+        else:
+            print(f"❌ File not found: {file_path}")
+            return
     
     cfg = load_config()
     params = {"vault": cfg["vault"], "path": path}
@@ -148,7 +173,8 @@ def cmd_list(keyword="", page=1):
             path = n.get("path", n.get("name", n.get("title", "unknown")))
             mtime = n.get("mtime", n.get("modified", ""))
             if mtime:
-                print(f"  📄 {path} ({mtime})")
+                readable_time = format_timestamp(mtime)
+                print(f"  📄 {path} ({readable_time})")
             else:
                 print(f"  📄 {path}")
         print(f"\nTotal: {total}")
@@ -189,17 +215,35 @@ def main():
     cmd = args[0] if args else "help"
     
     if cmd == "help": print_help()
-    elif cmd == "login": 
+    elif cmd == "login":
         if len(args) < 3:
             print("❌ Usage: fns login <username_or_email> <password>")
         else:
             cmd_login(args[1], args[2])
-    elif cmd == "read": cmd_read(args[1])
-    elif cmd == "write": cmd_write(args[1], args[2])
-    elif cmd == "append": cmd_append(args[1], args[2])
-    elif cmd == "list": cmd_list(keyword=args[1] if len(args) > 1 else "")
-    elif cmd == "config": cmd_config(args[1], args[2])
-    else: print(f"❌ Unknown command: {cmd}")
+    elif cmd == "read":
+        if len(args) < 2:
+            print("❌ Usage: fns read <note_path>")
+        else:
+            cmd_read(args[1])
+    elif cmd == "write":
+        if len(args) < 3:
+            print("❌ Usage: fns write <note_path> <content|@file.txt>")
+        else:
+            cmd_write(args[1], args[2])
+    elif cmd == "append":
+        if len(args) < 3:
+            print("❌ Usage: fns append <note_path> <content|@file.txt>")
+        else:
+            cmd_append(args[1], args[2])
+    elif cmd == "list":
+        cmd_list(keyword=args[1] if len(args) > 1 else "")
+    elif cmd == "config":
+        if len(args) < 3:
+            print("❌ Usage: fns config <url|vault> <value>")
+        else:
+            cmd_config(args[1], args[2])
+    else:
+        print(f"❌ Unknown command: {cmd}")
 
 if __name__ == "__main__":
     main()
