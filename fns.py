@@ -288,7 +288,7 @@ def append(path, content):
 def delete(path):
     """Delete a note (move to recycle bin)."""
     vault = require_vault()
-    data = curl_request("DELETE", "/note", params={"vault": vault, "path": path})
+    data = curl_request("DELETE", "/note", params={"vault": vault, "path": path, "pathHash": _compute_path_hash(path)})
     _handle_response(data, success_msg=f"✅ Note '{path}' deleted (moved to recycle bin).")
 
 @cli.command()
@@ -347,8 +347,9 @@ def move_note(old_path, new_path):
 def history(path, page):
     """Show note history."""
     vault = require_vault()
+    path_hash = _compute_path_hash(path)
     data = curl_request("GET", "/note/histories", params={
-        "vault": vault, "path": path, "page": page, "pageSize": 20
+        "vault": vault, "path": path, "pathHash": path_hash, "page": page, "pageSize": 20
     })
     if _ctx.get("json_output"):
         click.echo(json.dumps(data, indent=2, ensure_ascii=False))
@@ -378,18 +379,29 @@ def history(path, page):
 def history_view(path, history_id):
     """View a specific historical version of a note."""
     vault = require_vault()
+    path_hash = _compute_path_hash(path)
     data = curl_request("GET", "/note/history", params={
-        "vault": vault, "path": path, "id": history_id
+        "vault": vault, "path": path, "pathHash": path_hash, "id": history_id
     })
     if _ctx.get("json_output"):
         click.echo(json.dumps(data, indent=2, ensure_ascii=False))
         return
 
     content = data.get("data", {}).get("content")
-    if content is not None:
+    diffs = data.get("data", {}).get("diffs", [])
+
+    if diffs:
+        # Show diffs from API
+        _echo(f"📜 History #{history_id} of '{path}':\n{'-'*40}")
+        for diff in diffs:
+            diff_type = diff.get("Type", diff.get("type", 0))
+            diff_text = diff.get("Text", diff.get("text", ""))
+            prefix = "+" if diff_type == 1 else "-" if diff_type == 2 else " "
+            _echo(f"{prefix} {diff_text}")
+    elif content:
         _echo(f"📜 History #{history_id} of '{path}':\n{'-'*40}\n{content}")
     else:
-        _echo(f"❌ History not found: {json.dumps(data, indent=2, ensure_ascii=False)}", err=True)
+        _echo(f"❌ History #{history_id} not found or has no content.")
 
 @cli.command("history-restore")
 @click.argument("path")
@@ -400,7 +412,7 @@ def history_restore(path, history_id):
     click.confirm(f"⚠️ Restore '{path}' to version #{history_id}? Current content will be overwritten.", abort=True)
 
     data = curl_request("PUT", "/note/history/restore", json_data={
-        "vault": vault, "path": path, "historyId": history_id
+        "vault": vault, "path": path, "pathHash": _compute_path_hash(path), "historyId": history_id
     })
     _handle_response(data, success_msg=f"✅ Restored '{path}' to version #{history_id}.")
 
@@ -440,7 +452,7 @@ def recycle_clear(paths):
         _handle_response(data, success_msg="✅ Recycle bin cleared.")
     else:
         for p in paths:
-            data = curl_request("DELETE", "/note/recycle-clear", json_data={"vault": vault, "path": p})
+            data = curl_request("DELETE", "/note/recycle-clear", json_data={"vault": vault, "path": p, "pathHash": _compute_path_hash(p)})
             _handle_response(data, success_msg=f"✅ Permanently deleted '{p}'.")
 
 @cli.command("list")
@@ -579,6 +591,7 @@ def tree(path):
     params = {"vault": vault}
     if path:
         params["path"] = path
+        params["pathHash"] = _compute_path_hash(path)
     data = curl_request("GET", "/folder/tree", params=params)
     if _ctx.get("json_output"):
         click.echo(json.dumps(data, indent=2, ensure_ascii=False))
@@ -608,7 +621,7 @@ def _print_tree(node, indent=0):
 def backlinks(path):
     """Show notes that link to this note (backlinks)."""
     vault = require_vault()
-    data = curl_request("GET", "/note/backlinks", params={"vault": vault, "path": path})
+    data = curl_request("GET", "/note/backlinks", params={"vault": vault, "path": path, "pathHash": _compute_path_hash(path)})
     if _ctx.get("json_output"):
         click.echo(json.dumps(data, indent=2, ensure_ascii=False))
         return
@@ -630,7 +643,7 @@ def backlinks(path):
 def outlinks(path):
     """Show notes that this note links to (outlinks)."""
     vault = require_vault()
-    data = curl_request("GET", "/note/outlinks", params={"vault": vault, "path": path})
+    data = curl_request("GET", "/note/outlinks", params={"vault": vault, "path": path, "pathHash": _compute_path_hash(path)})
     if _ctx.get("json_output"):
         click.echo(json.dumps(data, indent=2, ensure_ascii=False))
         return
@@ -652,7 +665,7 @@ def outlinks(path):
 def restore(path):
     """Restore a note from the recycle bin."""
     vault = require_vault()
-    data = curl_request("POST", "/note/restore", json_data={"vault": vault, "path": path})
+    data = curl_request("POST", "/note/restore", json_data={"vault": vault, "path": path, "pathHash": _compute_path_hash(path)})
     _handle_response(data, success_msg=f"✅ Restored '{path}' from recycle bin.")
 
 @cli.command()
@@ -665,7 +678,7 @@ def frontmatter(path, set_pairs, remove_keys):
 
     # If no changes, just display current frontmatter
     if not set_pairs and not remove_keys:
-        data = curl_request("GET", "/note", params={"vault": vault, "path": path})
+        data = curl_request("GET", "/note", params={"vault": vault, "path": path, "pathHash": _compute_path_hash(path)})
         if _ctx.get("json_output"):
             click.echo(json.dumps(data, indent=2, ensure_ascii=False))
             return
@@ -689,7 +702,7 @@ def frontmatter(path, set_pairs, remove_keys):
             fm_data[key.strip()] = val.strip()
 
     data = curl_request("PATCH", "/note/frontmatter", json_data={
-        "vault": vault, "path": path, "frontmatter": fm_data, "removeKeys": list(remove_keys)
+        "vault": vault, "path": path, "pathHash": _compute_path_hash(path), "frontmatter": fm_data, "removeKeys": list(remove_keys)
     })
     _handle_response(data, success_msg=f"✅ Frontmatter updated for '{path}'.")
 
@@ -789,7 +802,7 @@ def share_password(path, password):
     """Set or change the access password for a shared note."""
     vault = require_vault()
     data = curl_request("POST", "/share/password", json_data={
-        "vault": vault, "path": path, "password": password
+        "vault": vault, "path": path, "pathHash": _compute_path_hash(path), "password": password
     })
     _handle_response(data, success_msg=f"✅ Password set for sharing '{path}'.")
 
