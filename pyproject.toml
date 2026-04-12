@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fns-cli"
+version = "0.4.0"
+description = "CLI tool for Fast Note Sync (Obsidian)"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "crazykuma"}
+]
+requires-python = ">=3.6"
+dependencies = [
+    "click>=8.1",
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.scripts]
+fns = "fns:cli"
+
+[project.urls]
+Homepage = "https://github.com/crazykuma/fns-cli"

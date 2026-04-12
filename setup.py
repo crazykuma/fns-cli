@@ -1,4 +1,4 @@
-from setuptools import setup, find_packages
+from setuptools import setup
 
 setup(
     name="fns-cli",
@@ -8,6 +8,8 @@ setup(
     long_description=open("README.md", encoding="utf-8").read(),
     long_description_content_type="text/markdown",
     url="https://github.com/crazykuma/fns-cli",
+    license="MIT",
+    license_files=["LICENSE"],
     py_modules=["fns"],
     python_requires=">=3.6",
     install_requires=[
