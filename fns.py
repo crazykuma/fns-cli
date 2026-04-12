@@ -17,6 +17,16 @@ import click
 
 __version__ = "0.5.0"
 
+def _compute_path_hash(path_str):
+    """Compute 32-bit FNV-1a hash for path (matches FNS server implementation)."""
+    FNV_32_PRIME = 16777619
+    FNV_32_OFFSET = 2166136261
+    h = FNV_32_OFFSET
+    for byte in path_str.encode("utf-8"):
+        h ^= byte
+        h = (h * FNV_32_PRIME) & 0xFFFFFFFF
+    return str(h)
+
 # Config directory: ~/.config/fns-cli/ (cross-platform, consistent with other CLI tools)
 CONFIG_DIR = Path.home() / ".config" / "fns-cli"
 CONFIG_FILE = CONFIG_DIR / "config.json"
@@ -712,7 +722,8 @@ def share(path, expire, password):
 def unshare(path):
     """Remove sharing for a note."""
     vault = require_vault()
-    data = curl_request("DELETE", "/share", json_data={"vault": vault, "path": path})
+    path_hash = _compute_path_hash(path)
+    data = curl_request("DELETE", "/share", json_data={"vault": vault, "pathHash": path_hash})
     _handle_response(data, success_msg=f"✅ Sharing removed for '{path}'.")
 
 @cli.command("shares")
