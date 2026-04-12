@@ -221,7 +221,8 @@ def login(credentials, password):
 def read(path):
     """Read a note."""
     vault = require_vault()
-    data = curl_request("GET", "/note", params={"vault": vault, "path": path})
+    path_hash = _compute_path_hash(path)
+    data = curl_request("GET", "/note", params={"vault": vault, "path": path, "pathHash": path_hash})
     if _ctx.get("json_output"):
         click.echo(json.dumps(data, indent=2, ensure_ascii=False))
         return
@@ -250,7 +251,7 @@ def write(path, content_or_file):
     else:
         content = content_or_file
 
-    data = curl_request("POST", "/note", json_data={"vault": vault, "path": path, "content": content})
+    data = curl_request("POST", "/note", json_data={"vault": vault, "path": path, "pathHash": _compute_path_hash(path), "content": content})
     _handle_response(data, success_msg=f"✅ Note '{path}' updated. Syncing to all devices...")
 
 @cli.command()
@@ -267,7 +268,7 @@ def append(path, content):
             _echo(f"❌ File not found: {file_path}", err=True)
             return
 
-    params = {"vault": vault, "path": path}
+    params = {"vault": vault, "path": path, "pathHash": _compute_path_hash(path)}
     read_resp = curl_request("GET", "/note", params=params)
     existing = ""
     if isinstance(read_resp.get("data"), dict):
@@ -279,7 +280,7 @@ def append(path, content):
         else:
             content = "\n\n" + content
 
-    data = curl_request("POST", "/note/append", json_data={"vault": vault, "path": path, "content": content})
+    data = curl_request("POST", "/note/append", json_data={"vault": vault, "path": path, "pathHash": _compute_path_hash(path), "content": content})
     _handle_response(data, success_msg=f"✅ Appended to '{path}'.")
 
 @cli.command()
@@ -306,7 +307,7 @@ def prepend(path, content_or_file):
     else:
         content = content_or_file
 
-    data = curl_request("POST", "/note/prepend", json_data={"vault": vault, "path": path, "content": content})
+    data = curl_request("POST", "/note/prepend", json_data={"vault": vault, "path": path, "pathHash": _compute_path_hash(path), "content": content})
     _handle_response(data, success_msg=f"✅ Prepended to '{path}'.")
 
 @cli.command()
@@ -317,7 +318,7 @@ def replace(path, search, replace_text):
     """Find and replace in note."""
     vault = require_vault()
     data = curl_request("POST", "/note/replace", json_data={
-        "vault": vault, "path": path, "find": search, "replace": replace_text
+        "vault": vault, "path": path, "pathHash": _compute_path_hash(path), "find": search, "replace": replace_text
     })
     if _ctx.get("json_output"):
         click.echo(json.dumps(data, indent=2, ensure_ascii=False))
@@ -336,7 +337,7 @@ def move_note(old_path, new_path):
     """Move/rename a note."""
     vault = require_vault()
     data = curl_request("POST", "/note/move", json_data={
-        "vault": vault, "path": old_path, "destination": new_path
+        "vault": vault, "path": old_path, "pathHash": _compute_path_hash(old_path), "destination": new_path
     })
     _handle_response(data, success_msg=f"✅ Moved '{old_path}' → '{new_path}'.")
 
@@ -409,8 +410,22 @@ def history_restore(path, history_id):
 def rename(old_path, new_path):
     """Rename a note to a new path."""
     vault = require_vault()
-    data = curl_request("POST", "/note/move", json_data={
-        "vault": vault, "path": old_path, "destination": new_path
+    # Get current note's pathHash
+    old_path_hash = _compute_path_hash(old_path)
+    note_data = curl_request("GET", "/note", params={"vault": vault, "path": old_path, "pathHash": old_path_hash})
+    actual_hash = note_data.get("data", {}).get("pathHash", "")
+    if not actual_hash:
+        _echo(f"❌ Note '{old_path}' not found.", err=True)
+        return
+
+    new_path_hash = _compute_path_hash(new_path)
+
+    data = curl_request("POST", "/note/rename", json_data={
+        "vault": vault,
+        "oldPath": old_path,
+        "oldPathHash": actual_hash,
+        "path": new_path,
+        "pathHash": new_path_hash
     })
     _handle_response(data, success_msg=f"✅ Renamed '{old_path}' → '{new_path}'.")
 
@@ -686,13 +701,14 @@ def share(path, expire, password):
     """Create a shareable link for a note."""
     vault = require_vault()
     # Get note's pathHash first
-    note_data = curl_request("GET", "/note", params={"vault": vault, "path": path})
-    path_hash = note_data.get("data", {}).get("pathHash", "")
-    if not path_hash:
+    path_hash = _compute_path_hash(path)
+    note_data = curl_request("GET", "/note", params={"vault": vault, "path": path, "pathHash": path_hash})
+    actual_hash = note_data.get("data", {}).get("pathHash", "")
+    if not actual_hash:
         _echo(f"❌ Could not find note '{path}'.", err=True)
         return
 
-    payload = {"vault": vault, "path": path, "pathHash": path_hash}
+    payload = {"vault": vault, "path": path, "pathHash": actual_hash}
     if expire:
         payload["expire"] = expire
     if password:
@@ -729,21 +745,17 @@ def share(path, expire, password):
 def unshare(path):
     """Remove sharing for a note."""
     vault = require_vault()
-    # First, find the share ID by listing all shares
-    data = curl_request("GET", "/shares", params={"page": 1, "pageSize": 100})
-    items = data.get("data", {}).get("list", [])
-    share_id = None
-    for s in items:
-        if s.get("notePath") == path or s.get("path") == path:
-            share_id = s.get("id")
-            break
-
-    if not share_id:
-        _echo(f"❌ No active share found for '{path}'.", err=True)
+    # Get note's pathHash
+    path_hash = _compute_path_hash(path)
+    note_data = curl_request("GET", "/note", params={"vault": vault, "path": path, "pathHash": path_hash})
+    actual_hash = note_data.get("data", {}).get("pathHash", "")
+    if not actual_hash:
+        _echo(f"❌ Note '{path}' not found.", err=True)
         return
 
-    # Delete the share by ID
-    del_data = curl_request("DELETE", "/share", json_data={"vault": vault, "id": share_id})
+    del_data = curl_request("DELETE", "/share", json_data={
+        "vault": vault, "path": path, "pathHash": path_hash
+    })
     _handle_response(del_data, success_msg=f"✅ Sharing removed for '{path}'.")
 
 @cli.command("shares")
