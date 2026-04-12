@@ -94,16 +94,21 @@ opencode "Read 'drafts/ideas.md', summarize the key points, and append the summa
 
 ```
 fns-cli/
-├── fns.py        # Main CLI logic
-├── setup.py      # Installation script
-├── README.md     # English documentation
-├── README.zh.md  # Chinese documentation
-└── LICENSE       # MIT License
+├── fns.py          # Main CLI logic
+├── setup.py        # Installation script
+├── tests/          # Unit tests (unittest)
+│   └── test_fns.py
+├── .gitignore
+├── README.md       # English documentation
+├── README.zh.md    # Chinese documentation
+└── LICENSE         # MIT License
 ```
 
-## 🔗 Related Projects
+## 🧪 Running Tests
 
-- **[obsidian-fast-note-sync](https://github.com/haierkeys/obsidian-fast-note-sync)**: The original FNS service and Obsidian plugin that powers this CLI.
+```bash
+python -m unittest discover -s tests -v
+```
 
 ## 📜 License
 
