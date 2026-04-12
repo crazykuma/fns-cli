@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-04-12
+
+### Added
+- **Click-based CLI framework** with subcommand auto-discovery and `--help`
+- **`--json` flag** for machine-readable output (AI Agent friendly)
+- **`-q` / `--quiet` flag** for silent operation
+- **`fns --version` / `-v`** to display version
+- **Vault requirement check** before making API requests
+  - Helpful hints: `fns vaults` or `fns config vault <name>`
+- **6 new commands**: `delete`, `prepend`, `replace`, `move`, `history`, `info`, `vaults`
+- **URL normalization**: auto-appends `/api` suffix if missing
+- **Auto-vault detection** on login (sets default if only one vault exists)
+
+### Changed
+- Error code handling now properly distinguishes success (`1-6`) from errors
+- `DEFAULT_VAULT` removed; vault is now auto-detected or user-configured
+- Tests refactored for click-based CLI
+
 ## [0.2.0] - 2026-04-12
 
 ### Added
