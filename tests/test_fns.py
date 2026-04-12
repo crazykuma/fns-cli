@@ -168,6 +168,24 @@ class TestURLNormalization(unittest.TestCase):
         self.assertEqual(url, "https://example.com/api")
 
 
+class TestVaultRequirement(unittest.TestCase):
+    """Test that require_vault() gives helpful hint when vault is empty."""
+
+    @patch("fns.print")
+    def test_require_vault_empty(self, mock_print):
+        """Test that missing vault shows setup hint."""
+        with patch.object(sys, "argv", ["fns", "list"]), \
+             patch("fns.load_config", return_value={"base_url": "https://example.com/api", "vault": ""}), \
+             patch.object(sys, "exit", side_effect=SystemExit):
+            with self.assertRaises(SystemExit):
+                fns.main()
+            # Verify helpful hints were printed
+            calls = [str(c[0][0]) for c in mock_print.call_args_list]
+            full_output = "\n".join(calls)
+            self.assertIn("fns vaults", full_output)
+            self.assertIn("fns config vault", full_output)
+
+
 class TestVersionFlag(unittest.TestCase):
     """Test --version and -v flags."""
 

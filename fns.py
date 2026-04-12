@@ -35,6 +35,17 @@ def save_config(cfg):
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
     CONFIG_FILE.write_text(json.dumps(cfg, indent=2))
 
+def require_vault():
+    """Check if vault is configured, print hint if not."""
+    cfg = load_config()
+    vault = cfg.get("vault", "")
+    if not vault:
+        print("⚠️ Vault not configured. Run one of these:")
+        print("   fns vaults          # List available vaults")
+        print("   fns config vault <name>  # Set your vault")
+        sys.exit(1)
+    return vault
+
 def get_token():
     if TOKEN_FILE.exists():
         return TOKEN_FILE.read_text().strip()
@@ -74,8 +85,8 @@ def curl_request(method, endpoint, params=None, json_data=None):
 
 def cmd_delete(path):
     """Move a note to recycle bin."""
-    cfg = load_config()
-    data = curl_request("DELETE", "/note", params={"vault": cfg["vault"], "path": path})
+    vault = require_vault()
+    data = curl_request("DELETE", "/note", params={"vault": vault, "path": path})
     if data.get("code", 0) >= 1 or data.get("status"):
         print(f"✅ Note '{path}' deleted (moved to recycle bin).")
     else:
@@ -83,6 +94,7 @@ def cmd_delete(path):
 
 def cmd_prepend(path, content_or_file):
     """Prepend content to a note (after frontmatter)."""
+    vault = require_vault()
     if content_or_file.startswith("@"):
         file_path = content_or_file[1:]
         if Path(file_path).exists():
@@ -93,8 +105,7 @@ def cmd_prepend(path, content_or_file):
     else:
         content = content_or_file
 
-    cfg = load_config()
-    data = curl_request("POST", "/note/prepend", json_data={"vault": cfg["vault"], "path": path, "content": content})
+    data = curl_request("POST", "/note/prepend", json_data={"vault": vault, "path": path, "content": content})
     if data.get("code", 0) >= 1 or data.get("status"):
         print(f"✅ Prepended to '{path}'.")
     else:
@@ -102,9 +113,9 @@ def cmd_prepend(path, content_or_file):
 
 def cmd_replace(path, search, replace):
     """Find and replace content in a note."""
-    cfg = load_config()
+    vault = require_vault()
     data = curl_request("POST", "/note/replace", json_data={
-        "vault": cfg["vault"], "path": path, "search": search, "replace": replace
+        "vault": vault, "path": path, "search": search, "replace": replace
     })
     if data.get("code", 0) >= 1 or data.get("status"):
         replacements = data.get("data", {}).get("count", "?")
@@ -114,9 +125,9 @@ def cmd_replace(path, search, replace):
 
 def cmd_move(old_path, new_path):
     """Move or rename a note."""
-    cfg = load_config()
+    vault = require_vault()
     data = curl_request("POST", "/note/move", json_data={
-        "vault": cfg["vault"], "path": old_path, "newPath": new_path
+        "vault": vault, "path": old_path, "newPath": new_path
     })
     if data.get("code", 0) >= 1 or data.get("status"):
         print(f"✅ Moved '{old_path}' → '{new_path}'.")
@@ -125,9 +136,9 @@ def cmd_move(old_path, new_path):
 
 def cmd_history(path, page=1):
     """Show note history."""
-    cfg = load_config()
+    vault = require_vault()
     data = curl_request("GET", "/note/histories", params={
-        "vault": cfg["vault"], "path": path, "page": page, "pageSize": 20
+        "vault": vault, "path": path, "page": page, "pageSize": 20
     })
     histories = []
     if isinstance(data.get("data"), dict):
@@ -224,7 +235,8 @@ def cmd_login(credentials, password):
         print(f"❌ Error: {e}")
 
 def cmd_read(path):
-    data = curl_request("GET", "/note", params={"vault": load_config()["vault"], "path": path})
+    vault = require_vault()
+    data = curl_request("GET", "/note", params={"vault": vault, "path": path})
     content = data.get("data", {}).get("content") if isinstance(data.get("data"), dict) else None
     if content is not None:
         print(f"📄 {path}\n{'-'*40}\n{content}")
@@ -232,6 +244,7 @@ def cmd_read(path):
         print(f"❌ Unexpected response: {json.dumps(data, indent=2, ensure_ascii=False)}")
 
 def cmd_write(path, content_or_file):
+    vault = require_vault()
     # Support @file.txt prefix for local file upload
     if content_or_file.startswith("@"):
         file_path = content_or_file[1:]
@@ -244,13 +257,14 @@ def cmd_write(path, content_or_file):
         content = Path(content_or_file).read_text(encoding="utf-8")
     else:
         content = content_or_file
-    data = curl_request("POST", "/note", json_data={"vault": load_config()["vault"], "path": path, "content": content})
+    data = curl_request("POST", "/note", json_data={"vault": vault, "path": path, "content": content})
     if data.get("code", 0) >= 1:
         print(f"✅ Note '{path}' updated. Syncing to all devices...")
     else:
         print(f"❌ Failed to write: {json.dumps(data, indent=2, ensure_ascii=False)}")
 
 def cmd_append(path, content):
+    vault = require_vault()
     # Support @file.txt prefix for local file upload
     if content.startswith("@"):
         file_path = content[1:]
@@ -259,31 +273,31 @@ def cmd_append(path, content):
         else:
             print(f"❌ File not found: {file_path}")
             return
-    
-    cfg = load_config()
-    params = {"vault": cfg["vault"], "path": path}
-    
+
+    params = {"vault": vault, "path": path}
+
     # Smart newline: Read existing content to ensure we don't merge lines
     read_resp = curl_request("GET", "/note", params=params)
     existing = ""
     if isinstance(read_resp.get("data"), dict):
         existing = read_resp["data"].get("content", "")
-    
+
     if existing and not existing.endswith("\n\n"):
         if existing.endswith("\n"):
             content = "\n" + content
         else:
             content = "\n\n" + content
-    
-    data = curl_request("POST", "/note/append", json_data={"vault": cfg["vault"], "path": path, "content": content})
+
+    data = curl_request("POST", "/note/append", json_data={"vault": vault, "path": path, "content": content})
     if data.get("code", 0) >= 1 or data.get("status"):
         print(f"✅ Appended to '{path}'.")
     else:
         print(f"❌ Failed to append: {json.dumps(data, indent=2, ensure_ascii=False)}")
 
 def cmd_list(keyword="", page=1):
-    data = curl_request("GET", "/notes", params={"vault": load_config()["vault"], "keyword": keyword, "page": page, "pageSize": 20})
-    
+    vault = require_vault()
+    data = curl_request("GET", "/notes", params={"vault": vault, "keyword": keyword, "page": page, "pageSize": 20})
+
     notes = []
     pager_info = {}
     if isinstance(data.get("data"), dict):
@@ -291,9 +305,8 @@ def cmd_list(keyword="", page=1):
         pager_info = data["data"].get("pager", {})
     elif isinstance(data, dict):
         notes = data.get("list", data.get("notes", []))
-    
+
     if notes:
-        vault = load_config()["vault"]
         total = pager_info.get("totalRows", len(notes)) if pager_info else len(notes)
         
         print(f"📚 Notes in '{vault}' (Page {page}):\n")
