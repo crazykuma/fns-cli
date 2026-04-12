@@ -678,15 +678,28 @@ def backlinks(path):
     if not data:
         _echo(f"📭 No backlinks found for '{path}'.")
         return
-    data_section = data.get("data") or {}
-    links = data_section.get("list", data_section if isinstance(data_section, list) else [])
+    data_section = data.get("data")
+    if not data_section:
+        _echo(f"📭 No backlinks found for '{path}'.")
+        return
+    if isinstance(data_section, list):
+        links = data_section
+    elif isinstance(data_section, dict):
+        links = data_section.get("list", [])
+    else:
+        links = []
     if isinstance(links, dict):
         links = links.get("list", [])
     if links:
         _echo(f"🔗 Backlinks for '{path}':\n")
         for link in links:
             link_path = link.get("path", link.get("name", "unknown"))
-            _echo(f"  📄 {link_path}")
+            context = link.get("context", "")
+            if context:
+                _echo(f"  📄 {link_path}")
+                _echo(f"     {context}")
+            else:
+                _echo(f"  📄 {link_path}")
         _echo(f"\nTotal: {len(links)}")
     else:
         _echo(f"📭 No backlinks found for '{path}'.")
@@ -704,15 +717,28 @@ def outlinks(path):
     if not data:
         _echo(f"📭 No outlinks found for '{path}'.")
         return
-    data_section = data.get("data") or {}
-    links = data_section.get("list", data_section if isinstance(data_section, list) else [])
+    data_section = data.get("data")
+    if not data_section:
+        _echo(f"📭 No outlinks found for '{path}'.")
+        return
+    if isinstance(data_section, list):
+        links = data_section
+    elif isinstance(data_section, dict):
+        links = data_section.get("list", [])
+    else:
+        links = []
     if isinstance(links, dict):
         links = links.get("list", [])
     if links:
         _echo(f"🔗 Outlinks from '{path}':\n")
         for link in links:
             link_path = link.get("path", link.get("name", "unknown"))
-            _echo(f"  📄 {link_path}")
+            context = link.get("context", "")
+            if context:
+                _echo(f"  📄 {link_path}")
+                _echo(f"     {context}")
+            else:
+                _echo(f"  📄 {link_path}")
         _echo(f"\nTotal: {len(links)}")
     else:
         _echo(f"📭 No outlinks found for '{path}'.")
@@ -787,12 +813,15 @@ def share(path, expire, password):
     # Get note's pathHash first
     path_hash = _compute_path_hash(path)
     note_data = curl_request("GET", "/note", params={"vault": vault, "path": path, "pathHash": path_hash})
+    if not note_data or not note_data.get("data"):
+        _echo(f"❌ Could not find note '{path}'.", err=True)
+        return
     actual_hash = note_data.get("data", {}).get("pathHash", "")
     if not actual_hash:
         _echo(f"❌ Could not find note '{path}'.", err=True)
         return
 
-    payload = {"vault": vault, "path": path}
+    payload = {"vault": vault, "path": path, "pathHash": actual_hash}
     if expire:
         payload["expire"] = expire
     if password:
@@ -805,10 +834,8 @@ def share(path, expire, password):
 
     share_data = data.get("data", {})
     if isinstance(share_data, str):
-        try:
-            share_data = json.loads(share_data)
-        except json.JSONDecodeError:
-            share_data = {}
+        try: share_data = json.loads(share_data)
+        except: share_data = {}
     if isinstance(share_data, list) and share_data:
         share_data = share_data[0]
     if isinstance(share_data, dict) and share_data:
