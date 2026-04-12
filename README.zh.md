@@ -195,7 +195,7 @@ fns-cli/
 
 ## 📖 使用示例
 
-详细的使用示例和常见工作流，请参阅 [skill.md](skill.md)。
+详细的使用示例和常见工作流，请参阅项目 Skill [`.qwen/skills/fns-examples/SKILL.md`](.qwen/skills/fns-examples/SKILL.md) 或查看 [skill.md](skill.md)。
 
 ## 🧪 运行测试
 

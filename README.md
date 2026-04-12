@@ -195,7 +195,7 @@ fns-cli/
 
 ## 📖 Usage Examples
 
-For detailed examples and common workflows, see [skill.md](skill.md).
+For detailed examples and common workflows, see the project Skill at [`.qwen/skills/fns-examples/SKILL.md`](.qwen/skills/fns-examples/SKILL.md) or view [skill.md](skill.md).
 
 ## 🧪 Running Tests
 
