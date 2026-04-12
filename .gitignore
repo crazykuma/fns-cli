@@ -26,4 +26,5 @@ Thumbs.db
 
 # Project-specific
 .fns_token
+fns-cli/token
 .qwen/
