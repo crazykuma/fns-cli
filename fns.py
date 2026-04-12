@@ -118,7 +118,7 @@ def curl_request(method, endpoint, params=None, json_data=None):
                     "-d", json.dumps(json_data)])
 
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=15, encoding="utf-8", errors="replace")
         if result.returncode != 0:
             if _ctx.get("json_output"):
                 click.echo(json.dumps({"error": "curl error", "detail": result.stderr.strip()}))
@@ -302,12 +302,12 @@ def prepend(path, content_or_file):
 @cli.command()
 @click.argument("path")
 @click.argument("search")
-@click.argument("replace")
-def replace(path, search, replace):
+@click.argument("replace_text")
+def replace(path, search, replace_text):
     """Find and replace in note."""
     vault = require_vault()
     data = curl_request("POST", "/note/replace", json_data={
-        "vault": vault, "path": path, "search": search, "replace": replace
+        "vault": vault, "path": path, "find": search, "replace": replace_text
     })
     if _ctx.get("json_output"):
         click.echo(json.dumps(data, indent=2, ensure_ascii=False))
@@ -326,7 +326,7 @@ def move_note(old_path, new_path):
     """Move/rename a note."""
     vault = require_vault()
     data = curl_request("POST", "/note/move", json_data={
-        "vault": vault, "path": old_path, "newPath": new_path
+        "vault": vault, "path": old_path, "destination": new_path
     })
     _handle_response(data, success_msg=f"✅ Moved '{old_path}' → '{new_path}'.")
 
