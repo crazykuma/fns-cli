@@ -159,7 +159,7 @@ def login(credentials, password, api_url):
     """Login and save token (password will be hidden if not provided)."""
     cfg = load_config()
 
-    # Step 1: Configure URL if not set
+    # Step 1: Ensure URL is configured
     base_url = cfg.get("base_url", "")
     if api_url:
         url_val = api_url.rstrip("/")
@@ -219,24 +219,21 @@ def login(credentials, password, api_url):
                         _echo(f"📦 Auto-set vault to '{vault_name}'")
                     elif vaults_list:
                         _echo("📦 Available vaults:")
-                        for v in vaults_list:
+                        choices = []
+                        for i, v in enumerate(vaults_list, 1):
                             name = v.get("vault", v.get("name", v.get("vault_name", str(v.get("id", "")))))
-                            _echo(f"  • {name}")
-                        vault_name = click.prompt("Enter vault name to use")
-                        # Validate vault name exists
-                        valid_names = [v.get("vault", v.get("name", v.get("vault_name", str(v.get("id", ""))))) for v in vaults_list]
-                        if vault_name in valid_names:
-                            cfg["vault"] = vault_name
-                            save_config(cfg)
-                            _echo(f"📦 Vault set to '{vault_name}'")
-                        else:
-                            _echo(f"⚠️ Vault '{vault_name}' not found. Using first available vault.", err=True)
-                            cfg["vault"] = valid_names[0]
-                            save_config(cfg)
-                            _echo(f"📦 Vault set to '{valid_names[0]}'")
+                            choices.append(str(i))
+                            _echo(f"  {i}. {name}")
+                        selected = click.prompt("Select vault", type=click.Choice(choices), default=choices[0])
+                        idx = int(selected) - 1
+                        v = vaults_list[idx]
+                        vault_name = v.get("vault", v.get("name", v.get("vault_name", str(v.get("id", "")))))
+                        cfg["vault"] = vault_name
+                        save_config(cfg)
+                        _echo(f"📦 Vault set to '{vault_name}'")
                 _echo("🎉 Ready! Try: fns list")
             else:
-                _echo(f"❌ No token in response.", err=True)
+                _echo("❌ No token in response.", err=True)
         else:
             _echo(f"❌ Login failed: {resp.get('message', 'Unknown error')}", err=True)
     except Exception as e:
