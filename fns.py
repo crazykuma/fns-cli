@@ -25,6 +25,9 @@ def _compute_path_hash(path_str):
     for byte in path_str.encode("utf-8"):
         h ^= byte
         h = (h * FNV_32_PRIME) & 0xFFFFFFFF
+    # Convert to signed 32-bit integer (matches Go int32 behavior)
+    if h >= 0x80000000:
+        h -= 0x100000000
     return str(h)
 
 # Config directory: ~/.config/fns-cli/ (cross-platform, consistent with other CLI tools)
@@ -1026,8 +1029,8 @@ def mkdir(path):
 def folder(path):
     """Get folder info by path."""
     vault = require_vault()
-    path_hash = _compute_path_hash(path)
-    data = curl_request("GET", "/folder", params={"vault": vault, "path": path, "pathHash": path_hash})
+    # pathHash is optional for GET /folder; omitting it avoids hash mismatch errors
+    data = curl_request("GET", "/folder", params={"vault": vault, "path": path})
     if _ctx.get("json_output"):
         click.echo(json.dumps(data, indent=2, ensure_ascii=False))
         return
@@ -1048,9 +1051,8 @@ def folder(path):
 def folder_files(path, page, page_size):
     """List files in a specific folder."""
     vault = require_vault()
-    path_hash = _compute_path_hash(path)
     data = curl_request("GET", "/folder/files", params={
-        "vault": vault, "path": path, "pathHash": path_hash, "page": page, "pageSize": page_size
+        "vault": vault, "path": path, "page": page, "pageSize": page_size
     })
     if _ctx.get("json_output"):
         click.echo(json.dumps(data, indent=2, ensure_ascii=False))
@@ -1076,9 +1078,8 @@ def folder_files(path, page, page_size):
 def folder_notes(path, page, page_size):
     """List notes in a specific folder."""
     vault = require_vault()
-    path_hash = _compute_path_hash(path)
     data = curl_request("GET", "/folder/notes", params={
-        "vault": vault, "path": path, "pathHash": path_hash, "page": page, "pageSize": page_size
+        "vault": vault, "path": path, "page": page, "pageSize": page_size
     })
     if _ctx.get("json_output"):
         click.echo(json.dumps(data, indent=2, ensure_ascii=False))
@@ -1105,9 +1106,7 @@ def folder_list(path):
     vault = require_vault()
     params = {"vault": vault}
     if path:
-        path_hash = _compute_path_hash(path)
         params["path"] = path
-        params["pathHash"] = path_hash
     
     data = curl_request("GET", "/folders", params=params)
     if _ctx.get("json_output"):
@@ -1136,9 +1135,8 @@ def folder_list(path):
 def folder_delete(path):
     """Delete a folder (soft delete)."""
     vault = require_vault()
-    path_hash = _compute_path_hash(path)
     click.confirm(f"⚠️ Move folder '{path}' to recycle bin?", abort=True)
-    data = curl_request("DELETE", "/folder", json_data={"path": path, "vault": vault, "pathHash": path_hash})
+    data = curl_request("DELETE", "/folder", json_data={"path": path, "vault": vault})
     _handle_response(data, success_msg=f"✅ Folder '{path}' moved to recycle bin.")
 
 @cli.command("folder-tree")
