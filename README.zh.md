@@ -62,20 +62,40 @@ fns write "drafts/ideas.md" "这里有一个绝妙的点子..."
 
 # 追加内容 (智能换行)
 fns append "daily/2024-05-20.md" "- [x] 完成任务 A"
+
+# 在笔记开头插入内容 (Frontmatter 后)
+fns prepend "daily/2024-05-20.md" "---\ntags: [已审核]\n---"
+
+# 查找替换
+fns replace "drafts/ideas.md" "TODO" "DONE"
+
+# 移动/重命名笔记
+fns move "drafts/ideas.md" "archive/ideas.md"
+
+# 删除笔记 (移入回收站)
+fns delete "drafts/ideas.md"
+
+# 查看笔记历史
+fns history "daily/2024-05-20.md"
 ```
 
 ### 4. 上传本地文件
 使用 `@` 前缀上传你机器上的本地文件。
 ```bash
 fns write "backup/会议记录.md" @/path/to/notes.txt
-# append 同样支持 @ 前缀
 fns append "daily/2024-05-20.md" @/path/to/todo-list.md
 ```
 
-### 5. 配置 Vault (可选)
-如果你需要修改默认的 Vault 名称（需与服务器端的 Obsidian Vault 名称一致）：
+### 5. 管理 Vault 和用户
 ```bash
+# 列出所有可用 Vault
+fns vaults
+
+# 设置特定 Vault
 fns config vault "My Vault"
+
+# 查看当前用户信息
+fns info
 ```
 
 ## 🤖 AI Agent 集成

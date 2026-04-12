@@ -62,18 +62,40 @@ fns write "drafts/ideas.md" "Here is my brilliant idea..."
 
 # Append to a note (auto-formats newlines)
 fns append "daily/2024-05-20.md" "- [x] Completed task"
+
+# Prepend content (after frontmatter)
+fns prepend "daily/2024-05-20.md" "---\ntags: [reviewed]\n---"
+
+# Find and replace
+fns replace "drafts/ideas.md" "TODO" "DONE"
+
+# Move/rename a note
+fns move "drafts/ideas.md" "archive/ideas.md"
+
+# Delete a note (moves to recycle bin)
+fns delete "drafts/ideas.md"
+
+# View note history
+fns history "daily/2024-05-20.md"
 ```
 
 ### 4. Upload Local Files
 Use the `@` prefix to upload a file from your machine.
 ```bash
 fns write "backup/meeting-notes.md" @/path/to/meeting-notes.txt
+fns append "daily/2024-05-20.md" @/path/to/todo-list.md
 ```
 
-### 5. Vault Configuration (Optional)
-If you need to change the default Vault name (matches your Obsidian vault name on the server):
+### 5. Manage Vault & User
 ```bash
+# List available vaults
+fns vaults
+
+# Set a specific vault
 fns config vault "My Vault"
+
+# Show current user info
+fns info
 ```
 
 ## 🤖 AI Agent Integration

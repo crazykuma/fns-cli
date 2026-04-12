@@ -11,7 +11,7 @@ CONFIG_FILE = CONFIG_DIR / "config.json"
 TOKEN_FILE = CONFIG_DIR / "token"
 
 DEFAULT_BASE_URL = ""  # Configure via 'fns config url'
-DEFAULT_VAULT = "Main"
+DEFAULT_VAULT = ""  # Auto-detected on first login
 
 def format_timestamp(ts_ms):
     """Convert millisecond Unix timestamp to human-readable local time."""
@@ -70,13 +70,117 @@ def curl_request(method, endpoint, params=None, json_data=None):
         print(f"❌ Invalid JSON response: {result.stdout[:200]}")
         sys.exit(1)
 
+def cmd_delete(path):
+    """Move a note to recycle bin."""
+    cfg = load_config()
+    data = curl_request("DELETE", "/note", params={"vault": cfg["vault"], "path": path})
+    if data.get("code", 0) >= 1 or data.get("status"):
+        print(f"✅ Note '{path}' deleted (moved to recycle bin).")
+    else:
+        print(f"❌ Failed to delete: {json.dumps(data, indent=2, ensure_ascii=False)}")
+
+def cmd_prepend(path, content_or_file):
+    """Prepend content to a note (after frontmatter)."""
+    if content_or_file.startswith("@"):
+        file_path = content_or_file[1:]
+        if Path(file_path).exists():
+            content = Path(file_path).read_text(encoding="utf-8")
+        else:
+            print(f"❌ File not found: {file_path}")
+            return
+    else:
+        content = content_or_file
+
+    cfg = load_config()
+    data = curl_request("POST", "/note/prepend", json_data={"vault": cfg["vault"], "path": path, "content": content})
+    if data.get("code", 0) >= 1 or data.get("status"):
+        print(f"✅ Prepended to '{path}'.")
+    else:
+        print(f"❌ Failed to prepend: {json.dumps(data, indent=2, ensure_ascii=False)}")
+
+def cmd_replace(path, search, replace):
+    """Find and replace content in a note."""
+    cfg = load_config()
+    data = curl_request("POST", "/note/replace", json_data={
+        "vault": cfg["vault"], "path": path, "search": search, "replace": replace
+    })
+    if data.get("code", 0) >= 1 or data.get("status"):
+        replacements = data.get("data", {}).get("count", "?")
+        print(f"✅ Replaced {replacements} occurrence(s) in '{path}'.")
+    else:
+        print(f"❌ Failed to replace: {json.dumps(data, indent=2, ensure_ascii=False)}")
+
+def cmd_move(old_path, new_path):
+    """Move or rename a note."""
+    cfg = load_config()
+    data = curl_request("POST", "/note/move", json_data={
+        "vault": cfg["vault"], "path": old_path, "newPath": new_path
+    })
+    if data.get("code", 0) >= 1 or data.get("status"):
+        print(f"✅ Moved '{old_path}' → '{new_path}'.")
+    else:
+        print(f"❌ Failed to move: {json.dumps(data, indent=2, ensure_ascii=False)}")
+
+def cmd_history(path, page=1):
+    """Show note history."""
+    cfg = load_config()
+    data = curl_request("GET", "/note/histories", params={
+        "vault": cfg["vault"], "path": path, "page": page, "pageSize": 20
+    })
+    histories = []
+    if isinstance(data.get("data"), dict):
+        histories = data["data"].get("list", [])
+    elif isinstance(data.get("data"), list):
+        histories = data["data"]
+
+    if histories:
+        print(f"📜 History for '{path}':\n")
+        for h in histories:
+            hid = h.get("id", h.get("historyId", ""))
+            mtime = h.get("mtime", h.get("updatedTimestamp", h.get("createdTimestamp", "")))
+            readable = format_timestamp(mtime) if mtime else ""
+            size = h.get("size", h.get("contentLength", ""))
+            print(f"  📄 [{hid}] {readable} ({size} bytes)")
+        print()
+    else:
+        print(f"📭 No history found for '{path}'.")
+
+def cmd_info():
+    """Show current user info."""
+    data = curl_request("GET", "/user/info")
+    user = data.get("data", {})
+    if user:
+        print("👤 Current user:")
+        for key in ("username", "email", "displayName", "id", "role"):
+            if key in user and user[key]:
+                print(f"  {key}: {user[key]}")
+    else:
+        print(f"❌ Failed to fetch user info: {json.dumps(data, indent=2, ensure_ascii=False)}")
+
+def cmd_vaults():
+    """List all available vaults from server."""
+    data = curl_request("GET", "/vault")
+    vaults = []
+    if isinstance(data.get("data"), list):
+        vaults = data["data"]
+    elif isinstance(data.get("data"), dict):
+        vaults = data["data"].get("list", [data["data"]])
+
+    if vaults:
+        print("📦 Available vaults:")
+        for v in vaults:
+            name = v.get("name", v.get("vault_name", v.get("id", "unknown")))
+            print(f"  🗄️  {name}")
+    else:
+        print(f"📭 No vaults found. Response: {json.dumps(data, indent=2, ensure_ascii=False)}")
+
 def cmd_login(credentials, password):
     cfg = load_config()
     base_url = cfg.get("base_url", "")
     if not base_url:
         print("⚠️ API URL not configured. Run: fns config url https://your-server/api")
         sys.exit(1)
-        
+
     url = f"{base_url}/user/login"
     cmd = ["curl", "-s", "-X", "POST", url,
            "-H", "Content-Type: application/json",
@@ -89,6 +193,27 @@ def cmd_login(credentials, password):
             if token:
                 TOKEN_FILE.write_text(token)
                 print(f"✅ Login successful. Token saved to {TOKEN_FILE}")
+
+                # Auto-fetch vaults and set default if not configured
+                if not cfg.get("vault"):
+                    vault_data = curl_request("GET", "/vault")
+                    vaults = []
+                    if isinstance(vault_data.get("data"), list):
+                        vaults = vault_data["data"]
+                    elif isinstance(vault_data.get("data"), dict):
+                        vaults = vault_data["data"].get("list", [vault_data["data"]])
+
+                    if len(vaults) == 1:
+                        vault_name = vaults[0].get("name", vaults[0].get("vault_name", vaults[0].get("id", "")))
+                        cfg["vault"] = vault_name
+                        save_config(cfg)
+                        print(f"📦 Auto-set vault to '{vault_name}'")
+                    elif vaults:
+                        print("📦 Multiple vaults available. Choose one with: fns config vault <name>")
+                        vault_names = ", ".join(
+                            v.get("name", v.get("vault_name", v.get("id", ""))) for v in vaults
+                        )
+                        print(f"   Available vaults: {vault_names}")
             else:
                 print(f"❌ No token in response: {json.dumps(resp, indent=2)}")
         else:
@@ -190,9 +315,13 @@ def cmd_config(key, value):
         save_config(cfg)
         print(f"✅ Vault set to '{value}'")
     elif key == "url":
-        cfg["base_url"] = value
+        # Auto-append /api suffix if missing
+        url = value.rstrip("/")
+        if not url.endswith("/api"):
+            url += "/api"
+        cfg["base_url"] = url
         save_config(cfg)
-        print(f"✅ API URL set to '{value}'")
+        print(f"✅ API URL set to '{url}'")
     else:
         print("⚠️ Unknown key. Use 'vault' or 'url'.")
 
@@ -206,7 +335,14 @@ Commands:
   read <path>           Read a note
   write <path> <text>   Create/Update note (use @file.txt for local file)
   append <path> <text>  Append text to a note
+  delete <path>         Delete a note (move to recycle bin)
+  prepend <path> <text> Prepend text to a note (after frontmatter)
+  replace <path> <old> <new>  Find and replace in note
+  move <old> <new>      Move/rename a note
+  history <path>        Show note history
   list [keyword]        List notes
+  vaults                List available vaults
+  info                  Show current user info
   config <key> <val>    Set vault or url
   help                  Show this help
     """)
@@ -214,7 +350,7 @@ Commands:
 def main():
     args = sys.argv[1:]
     cmd = args[0] if args else "help"
-    
+
     if cmd == "help": print_help()
     elif cmd == "login":
         if len(args) < 3:
@@ -236,8 +372,37 @@ def main():
             print("❌ Usage: fns append <note_path> <content|@file.txt>")
         else:
             cmd_append(args[1], args[2])
+    elif cmd == "delete":
+        if len(args) < 2:
+            print("❌ Usage: fns delete <note_path>")
+        else:
+            cmd_delete(args[1])
+    elif cmd == "prepend":
+        if len(args) < 3:
+            print("❌ Usage: fns prepend <note_path> <content|@file.txt>")
+        else:
+            cmd_prepend(args[1], args[2])
+    elif cmd == "replace":
+        if len(args) < 4:
+            print("❌ Usage: fns replace <note_path> <search> <replace>")
+        else:
+            cmd_replace(args[1], args[2], args[3])
+    elif cmd == "move":
+        if len(args) < 3:
+            print("❌ Usage: fns move <old_path> <new_path>")
+        else:
+            cmd_move(args[1], args[2])
+    elif cmd == "history":
+        if len(args) < 2:
+            print("❌ Usage: fns history <note_path>")
+        else:
+            cmd_history(args[1])
     elif cmd == "list":
         cmd_list(keyword=args[1] if len(args) > 1 else "")
+    elif cmd == "vaults":
+        cmd_vaults()
+    elif cmd == "info":
+        cmd_info()
     elif cmd == "config":
         if len(args) < 3:
             print("❌ Usage: fns config <url|vault> <value>")

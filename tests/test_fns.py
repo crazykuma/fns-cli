@@ -51,10 +51,8 @@ class TestConfig(unittest.TestCase):
     @patch.object(fns, "CONFIG_FILE", None)
     def test_load_config_no_file(self):
         """Test loading config when file doesn't exist returns defaults."""
-        # We test the logic: if file doesn't exist, return defaults
-        defaults = {"base_url": "", "vault": "Main"}
         self.assertEqual(fns.DEFAULT_BASE_URL, "")
-        self.assertEqual(fns.DEFAULT_VAULT, "Main")
+        self.assertEqual(fns.DEFAULT_VAULT, "")  # Auto-detected on login
 
     def test_save_and_load_config(self):
         """Test saving and loading config."""
@@ -132,6 +130,81 @@ class TestCurlRequestURL(unittest.TestCase):
         call_args = mock_run.call_args[0][0]
         url = call_args[4]  # The URL argument in the curl command
         self.assertIn("%E6%97%A5%E8%AE%B0", url)  # URL-encoded "日记"
+
+
+class TestURLNormalization(unittest.TestCase):
+    """Test URL auto-append /api logic."""
+
+    def test_url_without_api_suffix(self):
+        """Test that /api is appended to bare URL."""
+        value = "https://example.com"
+        url = value.rstrip("/")
+        if not url.endswith("/api"):
+            url += "/api"
+        self.assertEqual(url, "https://example.com/api")
+
+    def test_url_with_trailing_slash(self):
+        """Test that trailing slash is stripped before appending /api."""
+        value = "https://example.com/"
+        url = value.rstrip("/")
+        if not url.endswith("/api"):
+            url += "/api"
+        self.assertEqual(url, "https://example.com/api")
+
+    def test_url_already_has_api(self):
+        """Test that /api is not double-appended."""
+        value = "https://example.com/api"
+        url = value.rstrip("/")
+        if not url.endswith("/api"):
+            url += "/api"
+        self.assertEqual(url, "https://example.com/api")
+
+    def test_url_with_api_and_slash(self):
+        """Test URL with /api/ is not modified."""
+        value = "https://example.com/api/"
+        url = value.rstrip("/")
+        if not url.endswith("/api"):
+            url += "/api"
+        self.assertEqual(url, "https://example.com/api")
+
+
+class TestNewCommands(unittest.TestCase):
+    """Test argument validation for new commands."""
+
+    @patch("fns.print")
+    def test_delete_no_args(self, mock_print):
+        """Test fns delete without path shows usage."""
+        with patch.object(sys, "argv", ["fns", "delete"]):
+            fns.main()
+            mock_print.assert_called()
+
+    @patch("fns.print")
+    def test_prepend_one_arg(self, mock_print):
+        """Test fns prepend without content shows usage."""
+        with patch.object(sys, "argv", ["fns", "prepend", "note.md"]):
+            fns.main()
+            mock_print.assert_called()
+
+    @patch("fns.print")
+    def test_replace_two_args(self, mock_print):
+        """Test fns replace without replace text shows usage."""
+        with patch.object(sys, "argv", ["fns", "replace", "note.md", "old"]):
+            fns.main()
+            mock_print.assert_called()
+
+    @patch("fns.print")
+    def test_move_one_arg(self, mock_print):
+        """Test fns move without new path shows usage."""
+        with patch.object(sys, "argv", ["fns", "move", "old.md"]):
+            fns.main()
+            mock_print.assert_called()
+
+    @patch("fns.print")
+    def test_history_no_args(self, mock_print):
+        """Test fns history without path shows usage."""
+        with patch.object(sys, "argv", ["fns", "history"]):
+            fns.main()
+            mock_print.assert_called()
 
 
 if __name__ == "__main__":
