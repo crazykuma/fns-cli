@@ -183,3 +183,12 @@ Use `@` prefix to upload local files:
 fns write "backup/notes.md" @/path/to/local-file.txt
 fns append "daily/notes.md" @todo-list.md
 ```
+
+## v0.6 Folder Management
+- `fns mkdir <path>`: Create a folder.
+- `fns folder <path>`: Get folder info.
+- `fns folder-list [path]`: List sub-folders.
+- `fns folder-files <path>`: List files.
+- `fns folder-notes <path>`: List notes.
+- `fns folder-tree`: Show tree.
+- `fns folder-delete <path>`: Delete folder.

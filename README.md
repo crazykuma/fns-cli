@@ -44,6 +44,12 @@ This tool bridges the gap between **local Obsidian editing** and **cloud-based A
 - **Outlinks** — See which notes the current note links to
 - **Folder Tree** — Browse your vault's directory structure
 
+### Folder Management
+- **Create & Delete** — `mkdir`, `folder-delete`
+- **Browse** — `folder-list`, `folder-tree`
+- **List Content** — `folder-files`, `folder-notes`
+- **Metadata** — `folder`
+
 ### Sharing & Metadata
 - **Share Links** — Create shareable URLs with optional password and expiry
 - **Frontmatter Editing** — View and modify note metadata (tags, title, etc.)
@@ -136,12 +142,29 @@ fns backlinks <path>               # Notes linking to this one
 fns outlinks <path>                # Notes this one links to
 ```
 
+### Folder Management
+- **Create & Delete** — `mkdir`, `folder-delete`
+- **Browse** — `folder-list`, `folder-tree`
+- **List Content** — `folder-files`, `folder-notes`
+- **Metadata** — `folder`
+
 ### Sharing & Metadata
 ```bash
 fns share <path> [--expire 24h] [--password secret]  # Create share link
 fns unshare <path>                 # Remove sharing
 fns frontmatter <path>             # View frontmatter
 fns frontmatter <path> --set key=value --remove key  # Edit frontmatter
+```
+
+### Folder Management
+```bash
+fns mkdir <path>                     # Create a new folder
+fns folder <path>                    # Get folder metadata
+fns folder-list [path]               # List sub-folders (root if empty)
+fns folder-files <path>              # List files in a folder
+fns folder-notes <path>              # List notes in a folder
+fns folder-tree [--depth N]          # View folder tree
+fns folder-delete <path>             # Delete folder (soft delete)
 ```
 
 ### Vault & Server
