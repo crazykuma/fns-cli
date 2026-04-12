@@ -72,6 +72,20 @@ If you need to change the default Vault name (matches your Obsidian vault name o
 fns config vault "My Vault"
 ```
 
+## 🤖 AI Agent Integration
+
+You can use `fns` with any AI coding agent (OpenCode, Claude Code, OpenClaw, etc.) to manage your knowledge base:
+
+- **Read Context**: Ask agents to `fns read` specific notes to give them long-term memory or context before coding.
+- **Auto-Documentation**: Have agents `fns append` changelogs or summaries to your daily notes automatically.
+- **Knowledge Retrieval**: Use `fns list` to let agents discover relevant files before starting a task.
+
+**Example with OpenCode/Claude Code:**
+```bash
+# Ask OpenCode to summarize a note and update it
+opencode "Read 'drafts/ideas.md', summarize the key points, and append the summary to the bottom."
+```
+
 ## 📁 File Structure
 
 ```
