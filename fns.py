@@ -1,9 +1,17 @@
 #!/usr/bin/env python3
 """Fast Note Sync (FNS) CLI - Interact with your Obsidian FNS service from terminal."""
-import sys, json, subprocess
+import sys, json, subprocess, os
 from pathlib import Path
 from urllib.parse import urlencode
 from datetime import datetime, timezone
+
+# Fix Windows console encoding for emoji support
+if sys.platform == "win32":
+    os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 import click
 
@@ -353,10 +361,10 @@ def history(path, page):
     else:
         _echo(f"📭 No history found for '{path}'.")
 
-@cli.command()
+@cli.command("list")
 @click.argument("keyword", required=False, default="")
 @click.option("--page", default=1, help="Page number")
-def list(keyword, page):
+def list_notes(keyword, page):
     """List notes (optional keyword search)."""
     vault = require_vault()
     data = curl_request("GET", "/notes", params={"vault": vault, "keyword": keyword, "page": page, "pageSize": 20})
@@ -395,16 +403,16 @@ def vaults():
         click.echo(json.dumps(data, indent=2, ensure_ascii=False))
         return
 
-    vaults_list = []
+    vault_list = []
     if isinstance(data.get("data"), list):
-        vaults_list = data["data"]
+        vault_list = data["data"]
     elif isinstance(data.get("data"), dict):
-        vaults_list = data["data"].get("list", [data["data"]])
+        vault_list = data["data"].get("list", [data["data"]])
 
-    if vaults_list:
+    if vault_list:
         _echo("📦 Available vaults:")
-        for v in vaults_list:
-            name = v.get("name", v.get("vault_name", v.get("id", "unknown")))
+        for v in vault_list:
+            name = v.get("vault", v.get("name", v.get("vault_name", v.get("id", "unknown"))))
             _echo(f"  🗄️  {name}")
     else:
         _echo(f"📭 No vaults found.")
@@ -445,3 +453,6 @@ def config(key, value):
         _echo(f"✅ API URL set to '{url}'")
     else:
         _echo("⚠️ Unknown key. Use 'vault' or 'url'.", err=True)
+
+if __name__ == "__main__":
+    cli()
