@@ -357,9 +357,66 @@ def history(path, page):
             readable = format_timestamp(mtime) if mtime else ""
             size = h.get("size", h.get("contentLength", ""))
             _echo(f"  📄 [{hid}] {readable} ({size} bytes)")
-        _echo()
+        _echo("")
     else:
         _echo(f"📭 No history found for '{path}'.")
+
+@cli.command("history-view")
+@click.argument("path")
+@click.argument("history_id")
+def history_view(path, history_id):
+    """View a specific historical version of a note."""
+    vault = require_vault()
+    data = curl_request("GET", "/note/history", params={
+        "vault": vault, "path": path, "id": history_id
+    })
+    if _ctx.get("json_output"):
+        click.echo(json.dumps(data, indent=2, ensure_ascii=False))
+        return
+
+    content = data.get("data", {}).get("content")
+    if content is not None:
+        _echo(f"📜 History #{history_id} of '{path}':\n{'-'*40}\n{content}")
+    else:
+        _echo(f"❌ History not found: {json.dumps(data, indent=2, ensure_ascii=False)}", err=True)
+
+@cli.command("history-restore")
+@click.argument("path")
+@click.argument("history_id")
+def history_restore(path, history_id):
+    """Restore a note to a specific historical version."""
+    vault = require_vault()
+    click.confirm(f"⚠️ Restore '{path}' to version #{history_id}? Current content will be overwritten.", abort=True)
+
+    data = curl_request("PUT", "/note/history/restore", json_data={
+        "vault": vault, "path": path, "historyId": history_id
+    })
+    _handle_response(data, success_msg=f"✅ Restored '{path}' to version #{history_id}.")
+
+@cli.command("rename")
+@click.argument("old_path")
+@click.argument("new_path")
+def rename(old_path, new_path):
+    """Rename a note to a new path."""
+    vault = require_vault()
+    data = curl_request("POST", "/note/rename", json_data={
+        "vault": vault, "path": old_path, "newPath": new_path
+    })
+    _handle_response(data, success_msg=f"✅ Renamed '{old_path}' → '{new_path}'.")
+
+@cli.command("recycle-clear")
+@click.argument("paths", nargs=-1, required=False)
+def recycle_clear(paths):
+    """Permanently delete notes in recycle bin. Without args, clears entire bin."""
+    vault = require_vault()
+    if not paths:
+        click.confirm("⚠️ Permanently delete ALL notes in recycle bin?", abort=True)
+        data = curl_request("DELETE", "/note/recycle-clear", json_data={"vault": vault})
+        _handle_response(data, success_msg="✅ Recycle bin cleared.")
+    else:
+        for p in paths:
+            data = curl_request("DELETE", "/note/recycle-clear", json_data={"vault": vault, "path": p})
+            _handle_response(data, success_msg=f"✅ Permanently deleted '{p}'.")
 
 @cli.command("list")
 @click.argument("keyword", required=False, default="")
@@ -624,13 +681,20 @@ def share(path, expire, password):
     if password:
         payload["password"] = password
 
-    data = curl_request("POST", "/api/share", json_data=payload)
+    data = curl_request("POST", "/share", json_data=payload)
     if _ctx.get("json_output"):
         click.echo(json.dumps(data, indent=2, ensure_ascii=False))
         return
 
     share_data = data.get("data", {})
-    if share_data:
+    if isinstance(share_data, str):
+        try:
+            share_data = json.loads(share_data)
+        except json.JSONDecodeError:
+            share_data = {}
+    if isinstance(share_data, list) and share_data:
+        share_data = share_data[0]
+    if isinstance(share_data, dict) and share_data:
         token = share_data.get("token", share_data.get("shareToken", ""))
         url = share_data.get("url", share_data.get("shareUrl", ""))
         _echo(f"🔗 Share link created for '{path}':")
@@ -648,8 +712,64 @@ def share(path, expire, password):
 def unshare(path):
     """Remove sharing for a note."""
     vault = require_vault()
-    data = curl_request("DELETE", "/api/share", json_data={"vault": vault, "path": path})
+    data = curl_request("DELETE", "/share", json_data={"vault": vault, "path": path})
     _handle_response(data, success_msg=f"✅ Sharing removed for '{path}'.")
+
+@cli.command("shares")
+def shares_list():
+    """List all active share links."""
+    vault = require_vault()
+    data = curl_request("GET", "/shares", params={"page": 1, "pageSize": 50})
+    if _ctx.get("json_output"):
+        click.echo(json.dumps(data, indent=2, ensure_ascii=False))
+        return
+
+    items = data.get("data", {}).get("list", data.get("data", []))
+    if isinstance(items, dict):
+        items = items.get("list", [])
+    if items:
+        _echo("🔗 Active shares:\n")
+        for s in items:
+            spath = s.get("path", s.get("notePath", "unknown"))
+            stoken = s.get("token", s.get("shareToken", ""))
+            sexpire = s.get("expire", s.get("expiresAt", ""))
+            _echo(f"  📄 {spath}")
+            _echo(f"     Token: {stoken} | Expires: {sexpire}")
+        _echo(f"\nTotal: {len(items)}")
+    else:
+        _echo("📭 No active shares.")
+
+@cli.command("share-password")
+@click.argument("path")
+@click.argument("password")
+def share_password(path, password):
+    """Set or change the access password for a shared note."""
+    vault = require_vault()
+    data = curl_request("POST", "/share/password", json_data={
+        "vault": vault, "path": path, "password": password
+    })
+    _handle_response(data, success_msg=f"✅ Password set for sharing '{path}'.")
+
+@cli.command("share-paths")
+def share_paths():
+    """List paths of all shared notes in current vault."""
+    vault = require_vault()
+    data = curl_request("GET", "/notes/share-paths", params={"vault": vault})
+    if _ctx.get("json_output"):
+        click.echo(json.dumps(data, indent=2, ensure_ascii=False))
+        return
+
+    paths_data = data.get("data", [])
+    if isinstance(paths_data, dict):
+        paths_data = paths_data.get("list", paths_data.get("paths", []))
+    if paths_data:
+        _echo(f"🔗 Shared notes in '{vault}':\n")
+        for p in paths_data:
+            path = p if isinstance(p, str) else p.get("path", p.get("notePath", "unknown"))
+            _echo(f"  📄 {path}")
+        _echo(f"\nTotal: {len(paths_data)}")
+    else:
+        _echo("📭 No shared notes.")
 
 @cli.command()
 @click.argument("vault_id", required=False, default="")
