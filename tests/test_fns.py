@@ -168,6 +168,28 @@ class TestURLNormalization(unittest.TestCase):
         self.assertEqual(url, "https://example.com/api")
 
 
+class TestVersionFlag(unittest.TestCase):
+    """Test --version and -v flags."""
+
+    @patch("fns.print")
+    def test_version_flag(self, mock_print):
+        """Test fns --version outputs version string."""
+        with patch.object(sys, "argv", ["fns", "--version"]):
+            fns.main()
+            mock_print.assert_called_once()
+            call_arg = mock_print.call_args[0][0]
+            self.assertRegex(call_arg, r"fns-cli v\d+\.\d+\.\d+")
+
+    @patch("fns.print")
+    def test_short_version_flag(self, mock_print):
+        """Test fns -v outputs version string."""
+        with patch.object(sys, "argv", ["fns", "-v"]):
+            fns.main()
+            mock_print.assert_called_once()
+            call_arg = mock_print.call_args[0][0]
+            self.assertRegex(call_arg, r"fns-cli v\d+\.\d+\.\d+")
+
+
 class TestNewCommands(unittest.TestCase):
     """Test argument validation for new commands."""
 

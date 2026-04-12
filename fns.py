@@ -5,6 +5,8 @@ from pathlib import Path
 from urllib.parse import urlencode
 from datetime import datetime, timezone
 
+__version__ = "0.2.0"
+
 # Config directory: ~/.config/fns-cli/ (cross-platform, consistent with other CLI tools)
 CONFIG_DIR = Path.home() / ".config" / "fns-cli"
 CONFIG_FILE = CONFIG_DIR / "config.json"
@@ -326,8 +328,8 @@ def cmd_config(key, value):
         print("⚠️ Unknown key. Use 'vault' or 'url'.")
 
 def print_help():
-    print("""
-📝 Fast Note Sync CLI (fns)
+    print(f"""
+📝 Fast Note Sync CLI (fns) v{__version__}
 Usage: fns <command> [args]
 
 Commands:
@@ -345,13 +347,17 @@ Commands:
   info                  Show current user info
   config <key> <val>    Set vault or url
   help                  Show this help
+  -v, --version         Show version
     """)
 
 def main():
     args = sys.argv[1:]
     cmd = args[0] if args else "help"
 
-    if cmd == "help": print_help()
+    if cmd in ("--version", "-v"):
+        print(f"fns-cli v{__version__}")
+        return
+    elif cmd == "help": print_help()
     elif cmd == "login":
         if len(args) < 3:
             print("❌ Usage: fns login <username_or_email> <password>")
