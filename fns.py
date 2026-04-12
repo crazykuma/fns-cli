@@ -409,8 +409,8 @@ def history_restore(path, history_id):
 def rename(old_path, new_path):
     """Rename a note to a new path."""
     vault = require_vault()
-    data = curl_request("POST", "/note/rename", json_data={
-        "vault": vault, "path": old_path, "newPath": new_path
+    data = curl_request("POST", "/note/move", json_data={
+        "vault": vault, "path": old_path, "destination": new_path
     })
     _handle_response(data, success_msg=f"✅ Renamed '{old_path}' → '{new_path}'.")
 
@@ -685,7 +685,14 @@ def frontmatter(path, set_pairs, remove_keys):
 def share(path, expire, password):
     """Create a shareable link for a note."""
     vault = require_vault()
-    payload = {"vault": vault, "path": path}
+    # Get note's pathHash first
+    note_data = curl_request("GET", "/note", params={"vault": vault, "path": path})
+    path_hash = note_data.get("data", {}).get("pathHash", "")
+    if not path_hash:
+        _echo(f"❌ Could not find note '{path}'.", err=True)
+        return
+
+    payload = {"vault": vault, "path": path, "pathHash": path_hash}
     if expire:
         payload["expire"] = expire
     if password:
@@ -722,9 +729,22 @@ def share(path, expire, password):
 def unshare(path):
     """Remove sharing for a note."""
     vault = require_vault()
-    path_hash = _compute_path_hash(path)
-    data = curl_request("DELETE", "/share", json_data={"vault": vault, "pathHash": path_hash})
-    _handle_response(data, success_msg=f"✅ Sharing removed for '{path}'.")
+    # First, find the share ID by listing all shares
+    data = curl_request("GET", "/shares", params={"page": 1, "pageSize": 100})
+    items = data.get("data", {}).get("list", [])
+    share_id = None
+    for s in items:
+        if s.get("notePath") == path or s.get("path") == path:
+            share_id = s.get("id")
+            break
+
+    if not share_id:
+        _echo(f"❌ No active share found for '{path}'.", err=True)
+        return
+
+    # Delete the share by ID
+    del_data = curl_request("DELETE", "/share", json_data={"vault": vault, "id": share_id})
+    _handle_response(del_data, success_msg=f"✅ Sharing removed for '{path}'.")
 
 @cli.command("shares")
 def shares_list():
