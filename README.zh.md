@@ -106,7 +106,9 @@ fns config url "https://your-server/api"
 ### 认证与配置
 ```bash
 fns login [用户] [密码] [-u URL]   # 登录（省略参数时交互式）
-fns config <url|vault> <值>         # 设置 API 地址或 Vault
+fns config show                    # 查看当前配置
+fns config url <值>                # 设置 API 地址
+fns config vault <值>              # 设置 Vault 名称
 ```
 
 ### 笔记 CRUD
@@ -186,9 +188,14 @@ fns-cli/
 │   └── test_fns.py     # 单元测试
 ├── README.md           # 英文说明
 ├── README.zh.md        # 本文件
+├── skill.md            # 使用示例
 ├── CHANGELOG.md        # 版本历史
 └── LICENSE             # MIT 协议
 ```
+
+## 📖 使用示例
+
+详细的使用示例和常见工作流，请参阅 [skill.md](skill.md)。
 
 ## 🧪 运行测试
 

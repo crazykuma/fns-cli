@@ -106,7 +106,9 @@ fns config url "https://your-server/api"
 ### Authentication & Setup
 ```bash
 fns login [user] [pass] [-u URL]  # Login (interactive if args omitted)
-fns config <url|vault> <value>     # Set API URL or vault
+fns config show                    # Show current configuration
+fns config url <value>             # Set API URL
+fns config vault <value>           # Set vault name
 ```
 
 ### Note CRUD
@@ -186,9 +188,14 @@ fns-cli/
 │   └── test_fns.py     # Unit tests
 ├── README.md           # This file
 ├── README.zh.md        # Chinese version
+├── skill.md            # Usage examples
 ├── CHANGELOG.md        # Version history
 └── LICENSE             # MIT License
 ```
+
+## 📖 Usage Examples
+
+For detailed examples and common workflows, see [skill.md](skill.md).
 
 ## 🧪 Running Tests
 

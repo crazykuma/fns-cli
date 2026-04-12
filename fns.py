@@ -434,25 +434,60 @@ def info():
     else:
         _echo(f"❌ Failed to fetch user info.", err=True)
 
-@cli.command()
-@click.argument("key")
-@click.argument("value")
-def config(key, value):
-    """Set vault or url."""
+@cli.group()
+def config():
+    """Manage configuration."""
+    pass
+
+@config.command("show")
+def config_show():
+    """Show current configuration."""
     cfg = load_config()
-    if key == "vault":
-        cfg["vault"] = value
-        save_config(cfg)
-        _echo(f"✅ Vault set to '{value}'")
-    elif key == "url":
-        url = value.rstrip("/")
-        if not url.endswith("/api"):
-            url += "/api"
-        cfg["base_url"] = url
-        save_config(cfg)
-        _echo(f"✅ API URL set to '{url}'")
+    base_url = cfg.get("base_url", "(not configured)")
+    vault = cfg.get("vault", "(not configured)")
+
+    _echo("📋 Current configuration:")
+    _echo(f"  API URL : {base_url}")
+    _echo(f"  Vault   : {vault}")
+
+    # Fetch user info if token exists
+    if TOKEN_FILE.exists():
+        try:
+            data = curl_request("GET", "/user/info")
+            user = data.get("data", {})
+            if user:
+                username = user.get("username", user.get("email", user.get("displayName", "")))
+                if username:
+                    _echo(f"  User    : {username}")
+                else:
+                    _echo("  User    : (logged in, no username)")
+            else:
+                _echo("  User    : (token invalid)")
+        except SystemExit:
+            _echo("  User    : (could not fetch)")
     else:
-        _echo("⚠️ Unknown key. Use 'vault' or 'url'.", err=True)
+        _echo("  User    : (not logged in)")
+
+@config.command()
+@click.argument("value")
+def vault(value):
+    """Set vault name."""
+    cfg = load_config()
+    cfg["vault"] = value
+    save_config(cfg)
+    _echo(f"✅ Vault set to '{value}'")
+
+@config.command()
+@click.argument("value")
+def url(value):
+    """Set API URL."""
+    url_val = value.rstrip("/")
+    if not url_val.endswith("/api"):
+        url_val += "/api"
+    cfg = load_config()
+    cfg["base_url"] = url_val
+    save_config(cfg)
+    _echo(f"✅ API URL set to '{url_val}'")
 
 @cli.command()
 @click.argument("path", required=False, default="")
