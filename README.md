@@ -1,3 +1,7 @@
+**Languages**: 🇺🇸 English | [🇨🇳 中文](README.zh.md)
+
+---
+
 # FNS CLI (Fast Note Sync CLI)
 
 A powerful command-line interface for interacting with the **Fast Note Sync (FNS)** service for Obsidian. Manage, read, write, and sync your notes directly from your terminal.
@@ -92,7 +96,8 @@ opencode "Read 'drafts/ideas.md', summarize the key points, and append the summa
 fns-cli/
 ├── fns.py        # Main CLI logic
 ├── setup.py      # Installation script
-├── README.md     # This file
+├── README.md     # English documentation
+├── README.zh.md  # Chinese documentation
 └── LICENSE       # MIT License
 ```
 

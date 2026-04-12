@@ -1,3 +1,7 @@
+**Languages**: [🇺🇸 English](README.md) | 🇨🇳 中文
+
+---
+
 # FNS CLI (快速笔记同步命令行工具)
 
 这是一个强大的命令行工具，用于与 Obsidian 的 **Fast Note Sync (FNS)** 服务进行交互。让你可以直接在终端中管理、读取、写入和同步笔记。
