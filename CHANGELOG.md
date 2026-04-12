@@ -1,0 +1,38 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+## [0.2.0] - 2026-04-12
+
+### Added
+- Cross-platform config directory support
+  - Windows: `%APPDATA%/fns-cli/`
+  - Linux/macOS: `~/.config/fns-cli/`
+- Automatic legacy token migration (`~/.fns_token` → new config directory)
+- 15 unit tests covering timestamp formatting, config, file upload prefix,
+  argument validation, URL encoding, and token migration
+
+### Fixed
+- URL parameter encoding using `urllib.parse.urlencode` (fixes Chinese characters,
+  spaces, and special characters in note paths)
+- `@file.txt` prefix for local file upload in `write` and `append` commands
+- Missing argument count validation for `read`, `write`, `append`, and `config`
+  commands (prevents `IndexError` crashes)
+- Human-readable timestamps in `list` output (was raw millisecond Unix timestamp)
+
+### Changed
+- Token storage moved from `~/.fns_token` to `<config_dir>/fns-cli/token`
+  for consistency with config file location
+
+## [0.1.0] - 2026-03-20
+
+### Added
+- Initial release with basic CLI commands: `login`, `read`, `write`, `append`,
+  `list`, `config`, `help`
+- Smart newline handling in `append` command
+- Zero-dependency design (Python standard library + `curl`)
