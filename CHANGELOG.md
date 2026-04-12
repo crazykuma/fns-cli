@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-04-12
+
+### Added
+- **13 new commands** for comprehensive FNS API coverage:
+  - `tree [path]` — Vault folder tree structure view
+  - `backlinks <path>` — Notes linking to this note
+  - `outlinks <path>` — Notes this note links to
+  - `restore <path>` — Recover note from recycle bin
+  - `frontmatter <path>` — View/edit note metadata
+  - `share <path>` — Create shareable links (with optional password/expiry)
+  - `unshare <path>` — Remove sharing
+  - `vault-info [id]` — Show vault details
+  - `recycle-bin [path]` — View recycle bin contents
+  - `version` — Show server version
+  - `health` — Check server health
+  - `vault-create <name>` — Create new vault (with confirmation)
+  - `vault-delete <id>` — Delete vault (with double confirmation)
+- **`fns config show`** — Display current configuration (URL, vault, user)
+- **`fns config url/vault`** — Subcommands for setting URL and vault
+- **skill.md** — Comprehensive usage examples document
+- **`fns-skill/SKILL.md`** — Portable AI Agent Skill (copy to any agent's Skills folder)
+- URL auto-append `/api` suffix in `fns config url`
+- Auto-vault detection on login (shows numbered menu for selection)
+- Windows console UTF-8 encoding support for emoji output
+
+### Changed
+- `login` command now guides through full setup when URL is not configured
+- Password input is now hidden (`hide_input=True`)
+- Vault selection uses numbered menu instead of free-text input
+- Proper API field names: `find` for replace, `destination` for move, `vault` for vault list
+- `fns config` restructured as subcommand group (`fns config show/url/vault`)
+
+### Fixed
+- `list` command renamed to `list_notes` to avoid shadowing built-in
+- Response handling properly distinguishes success codes (1-6) from errors
+
 ## [0.3.0] - 2026-04-12
 
 ### Added

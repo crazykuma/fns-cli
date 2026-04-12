@@ -27,6 +27,7 @@ Thumbs.db
 # Project-specific
 fns-cli/token
 .qwen/
+QWEN.md
 
 # Test scripts
 test_e2e.py

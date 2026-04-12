@@ -4,19 +4,61 @@
 
 # FNS CLI (Fast Note Sync CLI)
 
-A powerful command-line interface for interacting with the **Fast Note Sync (FNS)** service for Obsidian. Manage, read, write, and sync your notes directly from your terminal.
+> **From Local to Cloud**: Transform Obsidian notes from locally-managed files into **cloud-managed, AI-accessible knowledge**. Edit once, sync everywhere.
+
+FNS CLI is a powerful command-line tool for interacting with the **[Fast Note Sync (FNS)](https://github.com/haierkeys/fast-note-sync-service)** service. Manage, read, write, and sync your Obsidian notes directly from the terminal — optimized for both **human workflows** and **AI Agent integration**.
+
+## 🎯 Design Philosophy
+
+This tool bridges the gap between **local Obsidian editing** and **cloud-based AI knowledge management**:
+
+```
+┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
+│  Obsidian App   │────▶│  FNS Service     │◀────│  FNS CLI (this) │
+│  (Desktop/Mobile│     │  (Cloud Server)  │     │  (Terminal/AI)  │
+│   Editor)       │◀────│                  │────▶│  (read/write)   │
+└─────────────────┘     └──────────────────┘     └─────────────────┘
+                                                         │
+                                              ┌──────────▼──────────┐
+                                              │  AI Agents           │
+                                              │  Claude Code,        │
+                                              │  OpenCode, Cursor... │
+                                              └─────────────────────┘
+```
+
+**One edit/update → all devices synced.** Whether you write in Obsidian on your desktop or manage notes via CLI/AI on a server, everything stays in sync through the FNS cloud service.
 
 ## ✨ Features
 
-- **Sync Notes**: Instantly read/write notes to your Obsidian vault via FNS.
-- **Smart Append**: Automatically adds newlines to separate appended content from existing text.
-- **Cross-Platform**: Works on macOS/Linux/Windows (Python 3.6+).
-- **Local File Upload**: Supports uploading local files directly to your vault.
-- **Zero Dependencies**: Uses standard library and `curl` (pre-installed on most systems).
+### Core
+- **Full Note CRUD** — Create, read, update, append, prepend, move, delete
+- **Smart Append** — Automatically handles newlines to prevent content merging
+- **Local File Upload** — Use `@file.txt` prefix to upload any local file
+- **Note History** — View and restore previous versions
+- **Recycle Bin** — Recover deleted notes
+- **Find & Replace** — Search and replace content (supports regex)
+- **Cross-Platform** — macOS / Linux / Windows (Python 3.6+)
+
+### Knowledge Graph
+- **Backlinks** — See which notes link to the current note
+- **Outlinks** — See which notes the current note links to
+- **Folder Tree** — Browse your vault's directory structure
+
+### Sharing & Metadata
+- **Share Links** — Create shareable URLs with optional password and expiry
+- **Frontmatter Editing** — View and modify note metadata (tags, title, etc.)
+
+### AI Agent Friendly
+- **`--json` Mode** — Machine-readable output for AI parsing
+- **`--quiet` Mode** — Silent operation for scripting
+- **Zero interactive prompts** when arguments are provided
+
+### Administration
+- **Vault Management** — List, view details, create, delete vaults
+- **Server Status** — Check version and health
+- **Auto-Setup** — Interactive guide on first login (URL → credentials → vault selection)
 
 ## 📦 Installation
-
-### From Source (Recommended)
 
 ```bash
 git clone https://github.com/crazykuma/fns-cli.git
@@ -26,105 +68,130 @@ pip install -e .
 
 This installs the `fns` command globally on your system.
 
-## ⚙️ Configuration
+**Dependencies**: `click>=8.1` (installed automatically) + `curl` (pre-installed on most systems)
 
-**Important**: Before logging in, you must configure your FNS server URL.
+## ⚙️ Quick Setup
+
+### First-Time (Interactive Guide)
 
 ```bash
-# Set the API URL (Required)
-fns config url "https://your-fns-server.com/api"
+fns login
+# Enter FNS server URL: https://your-server
+# Username or email: you@example.com
+# Password: **** (hidden)
+# 📦 Available vaults:
+#   1. defaultVault
+# Select vault [1]: 1
+# 🎉 Ready! Try: fns list
 ```
 
-## 🚀 Quick Start
+### Script-Friendly (Non-Interactive)
 
-### 1. Login
-Connect to your FNS server instance.
 ```bash
-fns login <username_or_email> <password>
+fns login -u https://your-server username password
 ```
 
-### 2. List Notes
-Browse your vault's file tree.
+### Manual Configuration
+
 ```bash
-fns list
-# Search for specific notes
-fns list "daily"
+fns config url "https://your-server/api"
 ```
 
-### 3. Read & Write
-Interact with specific notes.
+## 🚀 Command Reference
+
+### Authentication & Setup
 ```bash
-# Read a note
-fns read "daily/2024-05-20.md"
-
-# Create or overwrite a note
-fns write "drafts/ideas.md" "Here is my brilliant idea..."
-
-# Append to a note (auto-formats newlines)
-fns append "daily/2024-05-20.md" "- [x] Completed task"
-
-# Prepend content (after frontmatter)
-fns prepend "daily/2024-05-20.md" "---\ntags: [reviewed]\n---"
-
-# Find and replace
-fns replace "drafts/ideas.md" "TODO" "DONE"
-
-# Move/rename a note
-fns move "drafts/ideas.md" "archive/ideas.md"
-
-# Delete a note (moves to recycle bin)
-fns delete "drafts/ideas.md"
-
-# View note history
-fns history "daily/2024-05-20.md"
+fns login [user] [pass] [-u URL]  # Login (interactive if args omitted)
+fns config show                    # Show current configuration
+fns config url <value>             # Set API URL
+fns config vault <value>           # Set vault name
 ```
 
-### 4. Upload Local Files
-Use the `@` prefix to upload a file from your machine.
+### Note CRUD
 ```bash
-fns write "backup/meeting-notes.md" @/path/to/meeting-notes.txt
-fns append "daily/2024-05-20.md" @/path/to/todo-list.md
+fns read <path>                    # Read a note
+fns write <path> <text|@file>      # Create/overwrite (use @ to upload local file)
+fns append <path> <text|@file>     # Append content (smart newline handling)
+fns prepend <path> <text|@file>    # Prepend content (after frontmatter)
+fns delete <path>                  # Delete note (moves to recycle bin)
+fns move <old> <new>               # Move/rename a note
+fns replace <path> <find> <replace> # Find and replace (supports regex)
+fns history <path>                 # View revision history
+fns restore <path>                 # Restore note from recycle bin
 ```
 
-### 5. Manage Vault & User
+### Knowledge & Links
 ```bash
-# List available vaults
-fns vaults
+fns list [keyword]                 # List/search notes
+fns tree [path]                    # View folder tree structure
+fns backlinks <path>               # Notes linking to this one
+fns outlinks <path>                # Notes this one links to
+```
 
-# Set a specific vault
-fns config vault "My Vault"
+### Sharing & Metadata
+```bash
+fns share <path> [--expire 24h] [--password secret]  # Create share link
+fns unshare <path>                 # Remove sharing
+fns frontmatter <path>             # View frontmatter
+fns frontmatter <path> --set key=value --remove key  # Edit frontmatter
+```
 
-# Show current user info
-fns info
+### Vault & Server
+```bash
+fns vaults                         # List available vaults
+fns vault-info [id]                # Show vault details
+fns vault-create <name>            # Create vault (with confirmation)
+fns vault-delete <id>              # Delete vault (double confirmation)
+fns recycle-bin [keyword]          # View recycle bin
+fns version                        # Show server version
+fns health                         # Check server health
+fns info                           # Show current user info
+```
+
+### Global Flags
+```bash
+fns --json <command>               # Output as JSON (for AI/script parsing)
+fns --quiet <command>              # Suppress non-essential output
+fns --version / -v                 # Show version
+fns --help                         # Show help
 ```
 
 ## 🤖 AI Agent Integration
 
-You can use `fns` with any AI coding agent (OpenCode, Claude Code, OpenClaw, etc.) to manage your knowledge base:
+This tool is designed to give AI agents **long-term memory and knowledge access**:
 
-- **Read Context**: Ask agents to `fns read` specific notes to give them long-term memory or context before coding.
-- **Auto-Documentation**: Have agents `fns append` changelogs or summaries to your daily notes automatically.
-- **Knowledge Retrieval**: Use `fns list` to let agents discover relevant files before starting a task.
+- **Read Context**: `fns read` specific notes before coding tasks
+- **Auto-Documentation**: `fns append` changelogs to daily notes
+- **Knowledge Retrieval**: `fns list` / `fns tree` to discover relevant files
+- **Knowledge Graph**: `fns backlinks` / `fns outlinks` to find related notes
 
-**Example with OpenCode/Claude Code:**
+**Example with AI Agent:**
 ```bash
-# Ask OpenCode to summarize a note and update it
-opencode "Read 'drafts/ideas.md', summarize the key points, and append the summary to the bottom."
+# Ask AI to read context, work, then document
+fns read "projects/architecture.md" --json
+# ... AI works ...
+fns append "daily/2024-05-20.md" "- Completed architecture review"
 ```
 
 ## 📁 File Structure
 
 ```
 fns-cli/
-├── fns.py          # Main CLI logic
-├── setup.py        # Installation script
-├── tests/          # Unit tests (unittest)
-│   └── test_fns.py
-├── .gitignore
-├── README.md       # English documentation
-├── README.zh.md    # Chinese documentation
-└── LICENSE         # MIT License
+├── fns.py              # Main CLI logic
+├── setup.py            # Installation script
+├── requirements.txt    # Dependencies
+├── tests/
+│   └── test_fns.py     # Unit tests
+├── README.md           # This file
+├── README.zh.md        # Chinese version
+├── skill.md            # Usage examples
+├── CHANGELOG.md        # Version history
+└── LICENSE             # MIT License
 ```
+
+## 📖 Usage Examples
+
+For detailed examples, see the portable Skill at [`fns-skill/SKILL.md`](fns-skill/SKILL.md). You can copy the entire `fns-skill/` directory into your own AI agent's Skills folder (Qwen Code, Claude Code, etc.).
 
 ## 🧪 Running Tests
 
@@ -132,6 +199,11 @@ fns-cli/
 python -m unittest discover -s tests -v
 ```
 
+## 🔗 Related Projects
+
+- **[fast-note-sync-service](https://github.com/haierkeys/fast-note-sync-service)** — The FNS backend server
+- **[obsidian-fast-note-sync](https://github.com/haierkeys/obsidian-fast-note-sync)** — Obsidian plugin
+
 ## 📜 License
 
-MIT License - see the [LICENSE](LICENSE) file for details.
+MIT License — see [LICENSE](LICENSE).
