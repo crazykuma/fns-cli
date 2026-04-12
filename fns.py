@@ -1,17 +1,12 @@
 #!/usr/bin/env python3
 """Fast Note Sync (FNS) CLI - Interact with your Obsidian FNS service from terminal."""
-import os, sys, json, shutil, subprocess
+import sys, json, shutil, subprocess
 from pathlib import Path
 from urllib.parse import urlencode
 from datetime import datetime, timezone
 
-# Cross-platform config directory
-if sys.platform == "win32":
-    _config_base = Path(os.environ.get("APPDATA", Path.home()))
-else:
-    _config_base = Path.home()
-
-CONFIG_DIR = _config_base / "fns-cli"
+# Config directory: ~/.config/fns-cli/ (cross-platform, consistent with other CLI tools)
+CONFIG_DIR = Path.home() / ".config" / "fns-cli"
 CONFIG_FILE = CONFIG_DIR / "config.json"
 TOKEN_FILE = CONFIG_DIR / "token"
 
