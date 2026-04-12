@@ -454,5 +454,290 @@ def config(key, value):
     else:
         _echo("⚠️ Unknown key. Use 'vault' or 'url'.", err=True)
 
+@cli.command()
+@click.argument("path", required=False, default="")
+def tree(path):
+    """Show vault folder tree structure."""
+    vault = require_vault()
+    params = {"vault": vault}
+    if path:
+        params["path"] = path
+    data = curl_request("GET", "/folder/tree", params=params)
+    if _ctx.get("json_output"):
+        click.echo(json.dumps(data, indent=2, ensure_ascii=False))
+        return
+
+    tree_data = data.get("data", {})
+    if tree_data:
+        _echo(f"📂 Vault tree for '{vault}'" + (f" > {path}" if path else "") + ":\n")
+        _print_tree(tree_data, indent=0)
+    else:
+        _echo("📭 No tree data found.")
+
+def _print_tree(node, indent=0):
+    """Recursively print tree structure."""
+    prefix = "  " * indent + ("├─ " if indent > 0 else "")
+    name = node.get("name", node.get("path", "unknown"))
+    node_type = node.get("type", node.get("isFolder", "file"))
+    icon = "📁" if node_type in ("folder", True) or node.get("isFolder") else "📄"
+    _echo(f"{prefix}{icon} {name}")
+    children = node.get("children", node.get("sub", []))
+    if children:
+        for child in children:
+            _print_tree(child, indent + 1)
+
+@cli.command()
+@click.argument("path")
+def backlinks(path):
+    """Show notes that link to this note (backlinks)."""
+    vault = require_vault()
+    data = curl_request("GET", "/note/backlinks", params={"vault": vault, "path": path})
+    if _ctx.get("json_output"):
+        click.echo(json.dumps(data, indent=2, ensure_ascii=False))
+        return
+
+    links = data.get("data", {}).get("list", data.get("data", []))
+    if isinstance(links, dict):
+        links = links.get("list", [])
+    if links:
+        _echo(f"🔗 Backlinks for '{path}':\n")
+        for link in links:
+            link_path = link.get("path", link.get("name", "unknown"))
+            _echo(f"  📄 {link_path}")
+        _echo(f"\nTotal: {len(links)}")
+    else:
+        _echo(f"📭 No backlinks found for '{path}'.")
+
+@cli.command()
+@click.argument("path")
+def outlinks(path):
+    """Show notes that this note links to (outlinks)."""
+    vault = require_vault()
+    data = curl_request("GET", "/note/outlinks", params={"vault": vault, "path": path})
+    if _ctx.get("json_output"):
+        click.echo(json.dumps(data, indent=2, ensure_ascii=False))
+        return
+
+    links = data.get("data", {}).get("list", data.get("data", []))
+    if isinstance(links, dict):
+        links = links.get("list", [])
+    if links:
+        _echo(f"🔗 Outlinks from '{path}':\n")
+        for link in links:
+            link_path = link.get("path", link.get("name", "unknown"))
+            _echo(f"  📄 {link_path}")
+        _echo(f"\nTotal: {len(links)}")
+    else:
+        _echo(f"📭 No outlinks found for '{path}'.")
+
+@cli.command()
+@click.argument("path")
+def restore(path):
+    """Restore a note from the recycle bin."""
+    vault = require_vault()
+    data = curl_request("POST", "/note/restore", json_data={"vault": vault, "path": path})
+    _handle_response(data, success_msg=f"✅ Restored '{path}' from recycle bin.")
+
+@cli.command()
+@click.argument("path")
+@click.option("--set", "set_pairs", multiple=True, help="Set frontmatter key=value (can be repeated)")
+@click.option("--remove", "remove_keys", multiple=True, help="Remove frontmatter keys (can be repeated)")
+def frontmatter(path, set_pairs, remove_keys):
+    """View or edit note frontmatter."""
+    vault = require_vault()
+
+    # If no changes, just display current frontmatter
+    if not set_pairs and not remove_keys:
+        data = curl_request("GET", "/note", params={"vault": vault, "path": path})
+        if _ctx.get("json_output"):
+            click.echo(json.dumps(data, indent=2, ensure_ascii=False))
+            return
+        content = data.get("data", {}).get("content", "")
+        if content:
+            # Extract frontmatter (between --- markers)
+            if content.startswith("---"):
+                parts = content.split("---", 2)
+                if len(parts) >= 3:
+                    fm = parts[1].strip()
+                    _echo(f"📋 Frontmatter for '{path}':\n{fm}")
+                    return
+            _echo(f"📋 No frontmatter found for '{path}'.")
+        return
+
+    # Apply changes
+    fm_data = {}
+    for pair in set_pairs:
+        if "=" in pair:
+            key, val = pair.split("=", 1)
+            fm_data[key.strip()] = val.strip()
+
+    data = curl_request("PATCH", "/note/frontmatter", json_data={
+        "vault": vault, "path": path, "frontmatter": fm_data, "removeKeys": list(remove_keys)
+    })
+    _handle_response(data, success_msg=f"✅ Frontmatter updated for '{path}'.")
+
+@cli.command()
+@click.argument("path")
+@click.option("--expire", help="Expiration time (ISO 8601 or duration like 24h)")
+@click.option("--password", help="Access password for the shared link")
+def share(path, expire, password):
+    """Create a shareable link for a note."""
+    vault = require_vault()
+    payload = {"vault": vault, "path": path}
+    if expire:
+        payload["expire"] = expire
+    if password:
+        payload["password"] = password
+
+    data = curl_request("POST", "/api/share", json_data=payload)
+    if _ctx.get("json_output"):
+        click.echo(json.dumps(data, indent=2, ensure_ascii=False))
+        return
+
+    share_data = data.get("data", {})
+    if share_data:
+        token = share_data.get("token", share_data.get("shareToken", ""))
+        url = share_data.get("url", share_data.get("shareUrl", ""))
+        _echo(f"🔗 Share link created for '{path}':")
+        if url:
+            _echo(f"  URL: {url}")
+        if token:
+            _echo(f"  Token: {token}")
+        if expire:
+            _echo(f"  Expires: {expire}")
+    else:
+        _echo(f"❌ Failed to create share link: {json.dumps(data, indent=2, ensure_ascii=False)}", err=True)
+
+@cli.command()
+@click.argument("path")
+def unshare(path):
+    """Remove sharing for a note."""
+    vault = require_vault()
+    data = curl_request("DELETE", "/api/share", json_data={"vault": vault, "path": path})
+    _handle_response(data, success_msg=f"✅ Sharing removed for '{path}'.")
+
+@cli.command()
+@click.argument("vault_id", required=False, default="")
+def vault_info(vault_id):
+    """Show vault details."""
+    if not vault_id:
+        # If no ID provided, show current vault info
+        vault = require_vault()
+        # Try to get vault info by listing vaults and finding current one
+        data = curl_request("GET", "/vault")
+        vaults_list = []
+        if isinstance(data.get("data"), list):
+            vaults_list = data["data"]
+        elif isinstance(data.get("data"), dict):
+            vaults_list = data["data"].get("list", [data["data"]])
+
+        for v in vaults_list:
+            name = v.get("vault", v.get("name", v.get("vault_name", str(v.get("id", "")))))
+            if name == vault:
+                vault_id = str(v.get("id", ""))
+                break
+
+    if not vault_id:
+        _echo("❌ Vault ID not found.", err=True)
+        return
+
+    data = curl_request("GET", "/vault/get", params={"id": vault_id})
+    if _ctx.get("json_output"):
+        click.echo(json.dumps(data, indent=2, ensure_ascii=False))
+        return
+
+    info = data.get("data", {})
+    if info:
+        _echo(f"📦 Vault info (ID: {vault_id}):")
+        for key in ("vault", "name", "noteCount", "noteSize", "fileCount", "fileSize", "createdAt", "updatedAt"):
+            if key in info and info[key]:
+                _echo(f"  {key}: {info[key]}")
+    else:
+        _echo(f"❌ Vault not found: {vault_id}", err=True)
+
+@cli.command("recycle-bin")
+@click.argument("path", required=False, default="")
+def recycle_bin(path):
+    """Show notes in the recycle bin."""
+    vault = require_vault()
+    params = {"vault": vault, "isRecycle": "true", "page": 1, "pageSize": 50}
+    if path:
+        params["keyword"] = path
+    data = curl_request("GET", "/notes", params=params)
+
+    if _ctx.get("json_output"):
+        click.echo(json.dumps(data, indent=2, ensure_ascii=False))
+        return
+
+    notes = []
+    if isinstance(data.get("data"), dict):
+        notes = data["data"].get("list", [])
+    elif isinstance(data, dict):
+        notes = data.get("list", data.get("notes", []))
+
+    if notes:
+        _echo("🗑️  Recycle bin:\n")
+        for n in notes:
+            note_path = n.get("path", n.get("name", n.get("title", "unknown")))
+            mtime = n.get("mtime", n.get("modified", ""))
+            readable = format_timestamp(mtime) if mtime else ""
+            _echo(f"  📄 {note_path} ({readable})")
+        _echo(f"\nTotal: {len(notes)}")
+    else:
+        _echo("📭 Recycle bin is empty.")
+
+@cli.command()
+def version():
+    """Show server version."""
+    data = curl_request("GET", "/version")
+    if _ctx.get("json_output"):
+        click.echo(json.dumps(data, indent=2, ensure_ascii=False))
+        return
+
+    info = data.get("data", data)
+    if info:
+        _echo("📋 Server version:")
+        for key in ("version", "gitTag", "buildTime", "goVersion"):
+            if key in info and info[key]:
+                _echo(f"  {key}: {info[key]}")
+    else:
+        _echo(f"❌ Failed to get version info.", err=True)
+
+@cli.command()
+def health():
+    """Check server health status."""
+    data = curl_request("GET", "/health")
+    if _ctx.get("json_output"):
+        click.echo(json.dumps(data, indent=2, ensure_ascii=False))
+        return
+
+    status = data.get("status", data.get("code", 0))
+    if status is True or (isinstance(status, int) and status >= 1):
+        _echo("✅ Server is healthy.")
+    else:
+        _echo(f"⚠️ Server health check: {json.dumps(data, indent=2, ensure_ascii=False)}")
+
+@cli.command("vault-create")
+@click.argument("name")
+def vault_create(name):
+    """Create a new vault (requires confirmation)."""
+    vault = require_vault()  # Ensure user is authenticated
+    click.confirm(f"⚠️ Create new vault '{name}'? This action cannot be undone", abort=True)
+
+    data = curl_request("POST", "/vault", json_data={"vault": name})
+    _handle_response(data, success_msg=f"✅ Vault '{name}' created.")
+
+@cli.command("vault-delete")
+@click.argument("vault_id")
+def vault_delete(vault_id):
+    """Delete a vault by ID (requires double confirmation)."""
+    # First confirmation
+    click.confirm(f"⚠️ WARNING: This will permanently delete vault ID '{vault_id}' and ALL its data!", abort=True)
+    # Second confirmation
+    click.confirm("🚨 Are you absolutely sure? This action CANNOT be undone!", abort=True)
+
+    data = curl_request("DELETE", "/vault", params={"id": vault_id})
+    _handle_response(data, success_msg=f"✅ Vault '{vault_id}' deleted permanently.")
+
 if __name__ == "__main__":
     cli()

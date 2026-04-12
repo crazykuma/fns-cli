@@ -98,6 +98,34 @@ fns config vault "My Vault"
 fns info
 ```
 
+### 6. 高级笔记操作
+```bash
+# 查看笔记链接
+fns backlinks "daily/2024-05-20.md"
+fns outlinks "daily/2024-05-20.md"
+
+# 从回收站恢复
+fns restore "deleted-note.md"
+
+# 查看/编辑 Frontmatter
+fns frontmatter "note.md"
+fns frontmatter "note.md" --set tags=重要 --set status=草稿
+
+# 分享笔记
+fns share "note.md" --expire 24h --password 密码
+
+# 查看目录树
+fns tree
+fns tree "projects"
+
+# 查看回收站
+fns recycle-bin
+
+# 服务器信息
+fns version
+fns health
+```
+
 ## 🤖 AI Agent 集成
 
 你可以配合 AI 编码助手（如 OpenCode, Claude Code, OpenClaw 等）使用 `fns` 来管理你的知识库：

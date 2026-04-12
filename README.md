@@ -98,6 +98,34 @@ fns config vault "My Vault"
 fns info
 ```
 
+### 6. Advanced Note Operations
+```bash
+# View note links
+fns backlinks "daily/2024-05-20.md"
+fns outlinks "daily/2024-05-20.md"
+
+# Restore from recycle bin
+fns restore "deleted-note.md"
+
+# View/edit frontmatter
+fns frontmatter "note.md"
+fns frontmatter "note.md" --set tags=important --set status=draft
+
+# Share a note
+fns share "note.md" --expire 24h --password mysecret
+
+# View vault tree
+fns tree
+fns tree "projects"
+
+# View recycle bin
+fns recycle-bin
+
+# Server info
+fns version
+fns health
+```
+
 ## 🤖 AI Agent Integration
 
 You can use `fns` with any AI coding agent (OpenCode, Claude Code, OpenClaw, etc.) to manage your knowledge base:
