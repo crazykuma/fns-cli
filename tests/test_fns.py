@@ -183,5 +183,44 @@ class TestHandleResponse(unittest.TestCase):
         fns._ctx.clear()
 
 
+class TestNewCommandsValidation(unittest.TestCase):
+    """Test argument validation for Phase 4 new commands.
+
+    Click automatically validates required arguments and raises
+    MissingParameter. These tests verify that validation works.
+    """
+
+    def _expect_missing_param(self, args):
+        """Helper: assert click raises MissingParameter for missing args."""
+        with patch.object(sys, "argv", ["fns"] + args):
+            with self.assertRaises(Exception) as ctx:
+                fns.cli(standalone_mode=False)
+            self.assertIn("MissingParameter", type(ctx.exception).__name__)
+
+    def test_backlinks_requires_path(self):
+        self._expect_missing_param(["backlinks"])
+
+    def test_outlinks_requires_path(self):
+        self._expect_missing_param(["outlinks"])
+
+    def test_restore_requires_path(self):
+        self._expect_missing_param(["restore"])
+
+    def test_frontmatter_requires_path(self):
+        self._expect_missing_param(["frontmatter"])
+
+    def test_share_requires_path(self):
+        self._expect_missing_param(["share"])
+
+    def test_unshare_requires_path(self):
+        self._expect_missing_param(["unshare"])
+
+    def test_vault_create_requires_name(self):
+        self._expect_missing_param(["vault-create"])
+
+    def test_vault_delete_requires_id(self):
+        self._expect_missing_param(["vault-delete"])
+
+
 if __name__ == "__main__":
     unittest.main()
