@@ -60,13 +60,21 @@ This tool bridges the gap between **local Obsidian editing** and **cloud-based A
 
 ## 📦 Installation
 
+### From PyPI (Recommended)
+
+```bash
+pip install fns-cli
+```
+
+This installs the `fns` command globally on your system.
+
+### From Source
+
 ```bash
 git clone https://github.com/crazykuma/fns-cli.git
 cd fns-cli
 pip install -e .
 ```
-
-This installs the `fns` command globally on your system.
 
 **Dependencies**: `click>=8.1` (installed automatically) + `curl` (pre-installed on most systems)
 
