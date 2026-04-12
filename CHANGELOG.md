@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-04-12
+
+### Added
+- `fns history-view <path> <id>` — View specific historical version of a note
+- `fns history-restore <path> <id>` — Restore note to a specific version (with confirmation)
+- `fns rename <old> <new>` — Rename note to new path
+- `fns recycle-clear [paths...]` — Permanently delete notes from recycle bin
+- `fns shares` — List all active share links
+- `fns share-password <path> <pwd>` — Set or change share password
+- `fns share-paths` — List paths of all shared notes in current vault
+
+### Fixed
+- `history` command `_echo()` missing text argument
+- Share API response parsing for list/string data types
+- Share/unshare API paths corrected
+
 ## [0.4.0] - 2026-04-12
 
 ### Added

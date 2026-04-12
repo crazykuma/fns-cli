@@ -60,13 +60,21 @@ FNS CLI 是一个强大的命令行工具，用于与 **[Fast Note Sync (FNS)](h
 
 ## 📦 安装
 
+### 从 PyPI 安装（推荐）
+
+```bash
+pip install fns-cli
+```
+
+安装完成后，你就可以在终端直接使用 `fns` 命令。
+
+### 从源码安装
+
 ```bash
 git clone https://github.com/crazykuma/fns-cli.git
 cd fns-cli
 pip install -e .
 ```
-
-安装完成后，你就可以在终端直接使用 `fns` 命令。
 
 **依赖**：`click>=8.1`（自动安装）+ `curl`（大多数系统已预装）
 
