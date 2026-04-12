@@ -6,10 +6,6 @@
 
 > **从本地到云端**：将 Obsidian 笔记从本地管理转向云端管理和 AI 管理，实现**一次编辑/更新，全端同步**。
 
-[![版本](https://img.shields.io/badge/版本-0.4.0-blue)](CHANGELOG.md)
-[![Python](https://img.shields.io/badge/python-3.6+-green)](https://www.python.org/)
-[![许可证](https://img.shields.io/badge/许可证-MIT-lightgrey)](LICENSE)
-
 FNS CLI 是一个强大的命令行工具，用于与 **[Fast Note Sync (FNS)](https://github.com/haierkeys/fast-note-sync-service)** 服务进行交互。直接在终端中管理、读写和同步你的 Obsidian 笔记 —— 为**人工工作流**和 **AI Agent 集成**而优化。
 
 ## 🎯 设计理念

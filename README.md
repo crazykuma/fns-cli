@@ -6,10 +6,6 @@
 
 > **From Local to Cloud**: Transform Obsidian notes from locally-managed files into **cloud-managed, AI-accessible knowledge**. Edit once, sync everywhere.
 
-[![Version](https://img.shields.io/badge/version-0.4.0-blue)](CHANGELOG.md)
-[![Python](https://img.shields.io/badge/python-3.6+-green)](https://www.python.org/)
-[![License](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
-
 FNS CLI is a powerful command-line tool for interacting with the **[Fast Note Sync (FNS)](https://github.com/haierkeys/fast-note-sync-service)** service. Manage, read, write, and sync your Obsidian notes directly from the terminal — optimized for both **human workflows** and **AI Agent integration**.
 
 ## 🎯 Design Philosophy
