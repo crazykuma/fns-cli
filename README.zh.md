@@ -34,11 +34,13 @@ fns config url "https://your-fns-server.com/api"
 ## 🚀 快速开始
 
 ### 1. 登录
+连接到你的 FNS 服务器实例。
 ```bash
 fns login <用户名或邮箱> <密码>
 ```
 
 ### 2. 浏览笔记
+浏览你的笔记库目录。
 ```bash
 fns list
 # 搜索特定笔记
@@ -46,6 +48,7 @@ fns list "日记"
 ```
 
 ### 3. 读写笔记
+与特定笔记交互。
 ```bash
 # 读取笔记
 fns read "daily/2024-05-20.md"
@@ -58,29 +61,30 @@ fns append "daily/2024-05-20.md" "- [x] 完成任务 A"
 ```
 
 ### 4. 上传本地文件
+使用 `@` 前缀上传你机器上的本地文件。
 ```bash
 fns write "backup/会议记录.md" @/path/to/notes.txt
 ```
 
-## 🤖 与 AI 编码助手配合使用
-
-你可以直接在终端中通过 AI 工具（如 Claude Code, OpenCode, OpenClaw 等）来操作笔记，实现自动化记录和管理：
-
-### OpenCode / Claude Code
-你可以直接给这些 AI 编码助手发送指令，它们会自动调用本地的 `fns` 命令。
-
-**OpenCode 示例：**
+### 5. 配置 Vault (可选)
+如果你需要修改默认的 Vault 名称（需与服务器端的 Obsidian Vault 名称一致）：
 ```bash
-opencode "帮我读取 daily/2024-04-12.md，总结今天的待办事项，并把总结追加到该文件末尾。"
+fns config vault "My Vault"
 ```
 
-**Claude Code 示例：**
-```bash
-claude "搜索所有包含 '会议' 的笔记，把最新的会议笔记内容提取出来，并创建一个新的文件 'daily/summary.md' 进行汇总。"
-```
+## 🤖 AI Agent 集成
 
-### 通用 Agent (OpenClaw 等)
-任何具有 Shell 执行能力的 AI Agent 都可以通过运行 `fns list`、`fns read` 等命令来获取笔记上下文，或者通过 `fns write`、`fns append` 自动将运行结果或总结写入你的 Obsidian 库中。
+你可以配合 AI 编码助手（如 OpenCode, Claude Code, OpenClaw 等）使用 `fns` 来管理你的知识库：
+
+- **读取上下文**：让 Agent `fns read` 特定笔记，为编码或任务提供长期记忆或背景信息。
+- **自动文档**：让 Agent 将变更日志或总结通过 `fns append` 自动追加到你的日记中。
+- **知识检索**：在开始任务前，使用 `fns list` 让 Agent 发现相关文件。
+
+**配合 OpenCode/Claude Code 示例：**
+```bash
+# 让 OpenCode 读取总结并更新笔记
+opencode "读取 'drafts/ideas.md'，总结关键点，并把总结追加到文件末尾。"
+```
 
 ## 📁 目录结构
 
