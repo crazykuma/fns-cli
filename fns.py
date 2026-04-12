@@ -152,22 +152,39 @@ def cli(ctx, quiet, json_output):
     _ctx["json_output"] = json_output
 
 @cli.command()
-@click.argument("credentials")
-@click.argument("password")
-def login(credentials, password):
-    """Login and save token."""
+@click.argument("credentials", required=False)
+@click.argument("password", required=False)
+@click.option("-u", "--url", "api_url", help="Set API URL before login")
+def login(credentials, password, api_url):
+    """Login and save token (password will be hidden if not provided)."""
     cfg = load_config()
+
+    # Set URL if provided
+    if api_url:
+        url_val = api_url.rstrip("/")
+        if not url_val.endswith("/api"):
+            url_val += "/api"
+        cfg["base_url"] = url_val
+        save_config(cfg)
+        _echo(f"✅ API URL set to '{url_val}'")
+
     base_url = cfg.get("base_url", "")
     if not base_url:
         _echo("⚠️ API URL not configured. Run: fns config url https://your-server/api", err=True)
         sys.exit(1)
+
+    # Prompt for credentials if not provided
+    if not credentials:
+        credentials = click.prompt("Username or email")
+    if not password:
+        password = click.prompt("Password", hide_input=True)
 
     url = f"{base_url}/user/login"
     cmd = ["curl", "-s", "-X", "POST", url,
            "-H", "Content-Type: application/json",
            "-d", json.dumps({"Credentials": credentials, "Password": password})]
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=15, encoding="utf-8", errors="replace")
         resp = json.loads(result.stdout)
         if _ctx.get("json_output"):
             click.echo(json.dumps(resp, indent=2, ensure_ascii=False))
@@ -182,23 +199,104 @@ def login(credentials, password):
                 # Auto-fetch vaults and set default if not configured
                 if not cfg.get("vault"):
                     vault_data = curl_request("GET", "/vault")
-                    vaults = []
+                    vaults_list = []
                     if isinstance(vault_data.get("data"), list):
-                        vaults = vault_data["data"]
+                        vaults_list = vault_data["data"]
                     elif isinstance(vault_data.get("data"), dict):
-                        vaults = vault_data["data"].get("list", [vault_data["data"]])
+                        vaults_list = vault_data["data"].get("list", [vault_data["data"]])
 
-                    if len(vaults) == 1:
-                        vault_name = vaults[0].get("name", vaults[0].get("vault_name", vaults[0].get("id", "")))
+                    if len(vaults_list) == 1:
+                        v = vaults_list[0]
+                        vault_name = v.get("vault", v.get("name", v.get("vault_name", str(v.get("id", "")))))
                         cfg["vault"] = vault_name
                         save_config(cfg)
                         _echo(f"📦 Auto-set vault to '{vault_name}'")
-                    elif vaults:
+                    elif vaults_list:
                         _echo("📦 Multiple vaults available. Choose one with: fns config vault <name>")
                         vault_names = ", ".join(
-                            v.get("name", v.get("vault_name", v.get("id", ""))) for v in vaults
+                            v.get("vault", v.get("name", v.get("vault_name", str(v.get("id", ""))))) for v in vaults_list
                         )
                         _echo(f"   Available vaults: {vault_names}")
+            else:
+                _echo(f"❌ No token in response: {json.dumps(resp, indent=2)}", err=True)
+        else:
+            _echo(f"❌ Login failed: {resp.get('message', json.dumps(resp, indent=2))}", err=True)
+    except Exception as e:
+        _echo(f"❌ Error: {e}", err=True)
+
+@cli.command()
+def init():
+    """Guided setup: configure URL, login, and set vault."""
+    cfg = load_config()
+
+    # Step 1: Configure URL
+    current_url = cfg.get("base_url", "")
+    if current_url:
+        _echo(f"Current URL: {current_url}")
+        new_url = click.prompt("Enter new API URL (press Enter to keep current)", default="", show_default=False)
+    else:
+        new_url = click.prompt("Enter FNS server URL (e.g., https://your-server)", default="", show_default=False)
+
+    if new_url:
+        new_url = new_url.rstrip("/")
+        if not new_url.endswith("/api"):
+            new_url += "/api"
+        cfg["base_url"] = new_url
+        save_config(cfg)
+        _echo(f"✅ API URL set to '{new_url}'")
+    elif not cfg.get("base_url"):
+        _echo("❌ URL is required.", err=True)
+        sys.exit(1)
+
+    # Step 2: Login
+    credentials = click.prompt("Username or email")
+    password = click.prompt("Password", hide_input=True)
+
+    base_url = cfg.get("base_url", "")
+    url = f"{base_url}/user/login"
+    cmd = ["curl", "-s", "-X", "POST", url,
+           "-H", "Content-Type: application/json",
+           "-d", json.dumps({"Credentials": credentials, "Password": password})]
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=15, encoding="utf-8", errors="replace")
+        resp = json.loads(result.stdout)
+
+        if resp.get("status") or resp.get("code", 0) >= 1:
+            token = resp.get("data", {}).get("token")
+            if token:
+                TOKEN_FILE.write_text(token)
+                _echo(f"✅ Login successful. Token saved to {TOKEN_FILE}")
+
+                # Step 3: Vault selection
+                vault_data = curl_request("GET", "/vault")
+                vaults_list = []
+                if isinstance(vault_data.get("data"), list):
+                    vaults_list = vault_data["data"]
+                elif isinstance(vault_data.get("data"), dict):
+                    vaults_list = vault_data["data"].get("list", [vault_data["data"]])
+
+                if len(vaults_list) == 1:
+                    v = vaults_list[0]
+                    vault_name = v.get("vault", v.get("name", v.get("vault_name", str(v.get("id", "")))))
+                    cfg["vault"] = vault_name
+                    save_config(cfg)
+                    _echo(f"📦 Vault set to '{vault_name}'")
+                elif vaults_list:
+                    _echo("📦 Available vaults:")
+                    for i, v in enumerate(vaults_list, 1):
+                        name = v.get("vault", v.get("name", v.get("vault_name", str(v.get("id", "")))))
+                        _echo(f"  {i}. {name}")
+                    choice = click.prompt("Select vault number", type=int, default=1)
+                    if 1 <= choice <= len(vaults_list):
+                        v = vaults_list[choice - 1]
+                        vault_name = v.get("vault", v.get("name", v.get("vault_name", str(v.get("id", "")))))
+                        cfg["vault"] = vault_name
+                        save_config(cfg)
+                        _echo(f"📦 Vault set to '{vault_name}'")
+                    else:
+                        _echo("❌ Invalid choice.", err=True)
+
+                _echo("\n🎉 Setup complete! Try: fns list")
             else:
                 _echo(f"❌ No token in response: {json.dumps(resp, indent=2)}", err=True)
         else:
