@@ -67,58 +67,6 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(loaded["vault"], "TestVault")
 
 
-class TestTokenMigration(unittest.TestCase):
-    """Test legacy token migration."""
-
-    def setUp(self):
-        """Create temporary directories for migration test."""
-        self.temp_dir = tempfile.TemporaryDirectory()
-        self.config_dir = Path(self.temp_dir.name) / "fns-cli"
-        self.config_dir.mkdir(parents=True, exist_ok=True)
-        self.legacy_token = Path(self.temp_dir.name) / ".fns_token"
-        self.new_token = self.config_dir / "token"
-
-    def tearDown(self):
-        self.temp_dir.cleanup()
-
-    def test_migrate_legacy_token(self):
-        """Test that legacy token is moved to new location."""
-        self.legacy_token.write_text("legacy-token-123")
-        self.assertFalse(self.new_token.exists())
-
-        # Patch paths and run migration
-        with patch.object(fns, "CONFIG_DIR", self.config_dir), \
-             patch.object(fns, "TOKEN_FILE", self.new_token), \
-             patch.object(fns, "_LEGACY_TOKEN_FILE", self.legacy_token):
-            fns._migrate_legacy_token()
-
-        self.assertTrue(self.new_token.exists())
-        self.assertEqual(self.new_token.read_text(), "legacy-token-123")
-        self.assertFalse(self.legacy_token.exists())
-
-    def test_no_migration_if_new_exists(self):
-        """Test that token is not overwritten if new location already exists."""
-        self.legacy_token.write_text("legacy-token")
-        self.new_token.write_text("new-token")
-
-        with patch.object(fns, "CONFIG_DIR", self.config_dir), \
-             patch.object(fns, "TOKEN_FILE", self.new_token), \
-             patch.object(fns, "_LEGACY_TOKEN_FILE", self.legacy_token):
-            fns._migrate_legacy_token()
-
-        self.assertEqual(self.new_token.read_text(), "new-token")
-        self.assertTrue(self.legacy_token.exists())  # Legacy not deleted
-
-    def test_no_migration_if_legacy_missing(self):
-        """Test no error if legacy token doesn't exist."""
-        with patch.object(fns, "CONFIG_DIR", self.config_dir), \
-             patch.object(fns, "TOKEN_FILE", self.new_token), \
-             patch.object(fns, "_LEGACY_TOKEN_FILE", self.legacy_token):
-            fns._migrate_legacy_token()  # Should not raise
-
-        self.assertFalse(self.new_token.exists())
-
-
 class TestFileUploadPrefix(unittest.TestCase):
     """Test @file.txt prefix parsing for write/append commands."""
 

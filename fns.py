@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Fast Note Sync (FNS) CLI - Interact with your Obsidian FNS service from terminal."""
-import sys, json, shutil, subprocess
+import sys, json, subprocess
 from pathlib import Path
 from urllib.parse import urlencode
 from datetime import datetime, timezone
@@ -10,17 +10,8 @@ CONFIG_DIR = Path.home() / ".config" / "fns-cli"
 CONFIG_FILE = CONFIG_DIR / "config.json"
 TOKEN_FILE = CONFIG_DIR / "token"
 
-# Legacy token path for migration
-_LEGACY_TOKEN_FILE = Path.home() / ".fns_token"
-
 DEFAULT_BASE_URL = ""  # Configure via 'fns config url'
 DEFAULT_VAULT = "Main"
-
-def _migrate_legacy_token():
-    """Migrate token from legacy path (~/.fns_token) to new config directory."""
-    if _LEGACY_TOKEN_FILE.exists() and not TOKEN_FILE.exists():
-        CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-        shutil.move(str(_LEGACY_TOKEN_FILE), str(TOKEN_FILE))
 
 def format_timestamp(ts_ms):
     """Convert millisecond Unix timestamp to human-readable local time."""
@@ -34,7 +25,6 @@ def format_timestamp(ts_ms):
 
 def load_config():
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-    _migrate_legacy_token()
     if CONFIG_FILE.exists():
         return json.loads(CONFIG_FILE.read_text())
     return {"base_url": DEFAULT_BASE_URL, "vault": DEFAULT_VAULT}
