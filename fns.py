@@ -675,7 +675,11 @@ def backlinks(path):
         click.echo(json.dumps(data, indent=2, ensure_ascii=False))
         return
 
-    links = data.get("data", {}).get("list", data.get("data", []))
+    if not data:
+        _echo(f"📭 No backlinks found for '{path}'.")
+        return
+    data_section = data.get("data") or {}
+    links = data_section.get("list", data_section if isinstance(data_section, list) else [])
     if isinstance(links, dict):
         links = links.get("list", [])
     if links:
@@ -697,7 +701,11 @@ def outlinks(path):
         click.echo(json.dumps(data, indent=2, ensure_ascii=False))
         return
 
-    links = data.get("data", {}).get("list", data.get("data", []))
+    if not data:
+        _echo(f"📭 No outlinks found for '{path}'.")
+        return
+    data_section = data.get("data") or {}
+    links = data_section.get("list", data_section if isinstance(data_section, list) else [])
     if isinstance(links, dict):
         links = links.get("list", [])
     if links:
@@ -784,7 +792,7 @@ def share(path, expire, password):
         _echo(f"❌ Could not find note '{path}'.", err=True)
         return
 
-    payload = {"vault": vault, "path": path, "pathHash": actual_hash}
+    payload = {"vault": vault, "path": path}
     if expire:
         payload["expire"] = expire
     if password:
