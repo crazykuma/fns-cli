@@ -195,7 +195,7 @@ fns-cli/
 
 ## 📖 使用示例
 
-详细的使用示例和常见工作流，请参阅项目 Skill [`.qwen/skills/fns-examples/SKILL.md`](.qwen/skills/fns-examples/SKILL.md) 或查看 [skill.md](skill.md)。
+详细示例请参见可移植的 Skill：[`fns-skill/SKILL.md`](fns-skill/SKILL.md)。你可以直接将整个 `fns-skill/` 目录复制到你自己的 AI Agent 的 Skills 文件夹中（Qwen Code、Claude Code 等）。
 
 ## 🧪 运行测试
 

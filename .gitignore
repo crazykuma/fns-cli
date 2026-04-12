@@ -27,7 +27,6 @@ Thumbs.db
 # Project-specific
 fns-cli/token
 .qwen/
-!.qwen/skills/
 QWEN.md
 
 # Test scripts

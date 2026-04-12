@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`fns config show`** — Display current configuration (URL, vault, user)
 - **`fns config url/vault`** — Subcommands for setting URL and vault
 - **skill.md** — Comprehensive usage examples document
+- **`fns-skill/SKILL.md`** — Portable AI Agent Skill (copy to any agent's Skills folder)
 - URL auto-append `/api` suffix in `fns config url`
 - Auto-vault detection on login (shows numbered menu for selection)
 - Windows console UTF-8 encoding support for emoji output
