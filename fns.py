@@ -128,7 +128,7 @@ def curl_request(method, endpoint, params=None, json_data=None):
                     "-d", json.dumps(json_data)])
 
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=15, encoding="utf-8", errors="replace")
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, encoding="utf-8", errors="replace")
         if result.returncode != 0:
             if _ctx.get("json_output"):
                 click.echo(json.dumps({"error": "curl error", "detail": result.stderr.strip()}))
@@ -409,10 +409,11 @@ def history_view(path, history_id):
 def history_restore(path, history_id):
     """Restore a note to a specific historical version."""
     vault = require_vault()
+    path_hash = _compute_path_hash(path)
     click.confirm(f"⚠️ Restore '{path}' to version #{history_id}? Current content will be overwritten.", abort=True)
 
     data = curl_request("PUT", "/note/history/restore", json_data={
-        "vault": vault, "path": path, "pathHash": _compute_path_hash(path), "historyId": history_id
+        "vault": vault, "path": path, "pathHash": path_hash, "historyId": int(history_id)
     })
     _handle_response(data, success_msg=f"✅ Restored '{path}' to version #{history_id}.")
 
@@ -665,8 +666,22 @@ def outlinks(path):
 def restore(path):
     """Restore a note from the recycle bin."""
     vault = require_vault()
-    data = curl_request("POST", "/note/restore", json_data={"vault": vault, "path": path, "pathHash": _compute_path_hash(path)})
-    _handle_response(data, success_msg=f"✅ Restored '{path}' from recycle bin.")
+    # Get actual pathHash from recycle bin
+    data = curl_request("GET", "/notes", params={"vault": vault, "isRecycle": "true", "page": 1, "pageSize": 100})
+    notes = []
+    if isinstance(data.get("data"), dict):
+        notes = data["data"].get("list", [])
+    actual_hash = None
+    for n in notes:
+        if n.get("path") == path:
+            actual_hash = n.get("pathHash")
+            break
+    if not actual_hash:
+        _echo(f"❌ Note '{path}' not found in recycle bin.", err=True)
+        return
+
+    del_data = curl_request("PUT", "/note/restore", json_data={"vault": vault, "path": path, "pathHash": actual_hash})
+    _handle_response(del_data, success_msg=f"✅ Restored '{path}' from recycle bin.")
 
 @cli.command()
 @click.argument("path")
@@ -801,8 +816,9 @@ def shares_list():
 def share_password(path, password):
     """Set or change the access password for a shared note."""
     vault = require_vault()
+    path_hash = _compute_path_hash(path)
     data = curl_request("POST", "/share/password", json_data={
-        "vault": vault, "path": path, "pathHash": _compute_path_hash(path), "password": password
+        "vault": vault, "path": path, "pathHash": path_hash, "password": password
     })
     _handle_response(data, success_msg=f"✅ Password set for sharing '{path}'.")
 
@@ -815,6 +831,7 @@ def share_paths():
         click.echo(json.dumps(data, indent=2, ensure_ascii=False))
         return
 
+    # API returns data as a list of strings directly
     paths_data = data.get("data", [])
     if isinstance(paths_data, dict):
         paths_data = paths_data.get("list", paths_data.get("paths", []))
@@ -829,42 +846,39 @@ def share_paths():
 
 @cli.command()
 @click.argument("vault_id", required=False, default="")
-def vault_info(vault_id):
+def vault_info(vault_name):
     """Show vault details."""
-    if not vault_id:
-        # If no ID provided, show current vault info
-        vault = require_vault()
-        # Try to get vault info by listing vaults and finding current one
-        data = curl_request("GET", "/vault")
-        vaults_list = []
-        if isinstance(data.get("data"), list):
-            vaults_list = data["data"]
-        elif isinstance(data.get("data"), dict):
-            vaults_list = data["data"].get("list", [data["data"]])
+    if not vault_name:
+        # If no name provided, show current vault info
+        vault_name = require_vault()
 
-        for v in vaults_list:
-            name = v.get("vault", v.get("name", v.get("vault_name", str(v.get("id", "")))))
-            if name == vault:
-                vault_id = str(v.get("id", ""))
-                break
+    # Get vault list and find by name
+    data = curl_request("GET", "/vault")
+    vaults_list = []
+    if isinstance(data.get("data"), list):
+        vaults_list = data["data"]
+    elif isinstance(data.get("data"), dict):
+        vaults_list = data["data"].get("list", [data["data"]])
 
-    if not vault_id:
-        _echo("❌ Vault ID not found.", err=True)
+    target = None
+    for v in vaults_list:
+        name = v.get("vault", v.get("name", v.get("vault_name", "")))
+        if name == vault_name:
+            target = v
+            break
+
+    if not target:
+        _echo(f"❌ Vault '{vault_name}' not found.", err=True)
         return
 
-    data = curl_request("GET", "/vault/get", params={"id": vault_id})
     if _ctx.get("json_output"):
-        click.echo(json.dumps(data, indent=2, ensure_ascii=False))
+        click.echo(json.dumps(target, indent=2, ensure_ascii=False))
         return
 
-    info = data.get("data", {})
-    if info:
-        _echo(f"📦 Vault info (ID: {vault_id}):")
-        for key in ("vault", "name", "noteCount", "noteSize", "fileCount", "fileSize", "createdAt", "updatedAt"):
-            if key in info and info[key]:
-                _echo(f"  {key}: {info[key]}")
-    else:
-        _echo(f"❌ Vault not found: {vault_id}", err=True)
+    _echo(f"📦 Vault info for '{vault_name}':")
+    for key in ("vault", "name", "noteCount", "noteSize", "fileCount", "fileSize", "size", "createdAt", "updatedAt"):
+        if key in target and target[key]:
+            _echo(f"  {key}: {target[key]}")
 
 @cli.command("recycle-bin")
 @click.argument("path", required=False, default="")
