@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-04-13
+### Added
+- **File Management**: 7 new commands for attachment management.
+  - `file-info <path>`: View file metadata.
+  - `file-download <path> [-o output]`: Download file to local.
+  - `file-list [keyword]`: List files with pagination.
+  - `file-delete <path>`: Soft delete file to recycle bin.
+  - `file-rename <old> <new>`: Rename file.
+  - `file-restore <path>`: Restore file from recycle bin.
+  - `file-recycle-clear [paths]`: Permanently delete files from recycle bin.
+
 ## [0.6.0] - 2026-04-12
 ### Added
 - **Folder Management**: Added commands for creating, listing, and managing folders.

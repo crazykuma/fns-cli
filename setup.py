@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name="fns-cli",
-    version="0.6.0",
+    version="0.7.0",
     author="crazykuma",
     description="CLI tool for Fast Note Sync (Obsidian)",
     long_description=open("README.md", encoding="utf-8").read(),

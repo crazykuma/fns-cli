@@ -15,7 +15,7 @@ if sys.platform == "win32":
 
 import click
 
-__version__ = "0.6.0"
+__version__ = "0.7.0"
 
 def _compute_path_hash(path_str):
     """Compute 32-bit path hash matching FNS server implementation.
@@ -1208,6 +1208,144 @@ def folder_tree(depth):
 
     _print_tree(folders)
     _echo(f"\n📊 Root Stats: {tree_data.get('rootNoteCount', 0)} notes, {tree_data.get('rootFileCount', 0)} files")
+
+
+# ==================== File/Attachment Commands (v0.7) ====================
+
+@cli.command("file-info")
+@click.argument("path")
+def file_info(path):
+    """Get file/attachment metadata."""
+    vault = require_vault()
+    data = curl_request("GET", "/file/info", params={"vault": vault, "path": path, "pathHash": _compute_path_hash(path)})
+    if _ctx.get("json_output"):
+        click.echo(json.dumps(data, indent=2, ensure_ascii=False))
+        return
+
+    info = data.get("data", {})
+    if info:
+        _echo(f"📎 File info for '{path}':")
+        for key in ("path", "size", "contentHash", "createdAt", "updatedAt"):
+            if key in info and info[key]:
+                _echo(f"  {key}: {info[key]}")
+    else:
+        _echo(f"❌ File not found: {data.get('message', 'Unknown')}", err=True)
+
+
+@cli.command("file-download")
+@click.argument("path")
+@click.option("-o", "--output", help="Output file path (default: same as remote name)")
+def file_download(path, output):
+    """Download a file/attachment to local disk."""
+    vault = require_vault()
+    cfg = load_config()
+    base_url = cfg.get("base_url", "")
+    if not base_url:
+        _echo("⚠️ API URL not configured.", err=True)
+        sys.exit(1)
+
+    url = f"{base_url}/file?vault={vault}&path={path}&pathHash={_compute_path_hash(path)}"
+    out_path = output or path.split("/")[-1]
+
+    cmd = ["curl", "-s", "-o", out_path, url,
+           "-H", f"Authorization: Bearer {get_token()}",
+           "-w", "%{http_code}"]
+    result = subprocess.run(cmd, capture_output=True)
+    http_code = result.stdout.decode().strip()
+
+    if result.returncode == 0 and http_code == "200":
+        _echo(f"✅ Downloaded '{path}' → '{out_path}'")
+    else:
+        _echo(f"❌ Download failed (HTTP {http_code}): {result.stderr.decode(errors='replace')}", err=True)
+        sys.exit(1)
+
+
+@cli.command("file-list")
+@click.argument("keyword", required=False, default="")
+@click.option("--page", default=1, help="Page number")
+@click.option("--page-size", "page_size", default=20, help="Items per page")
+@click.option("--recycle", is_flag=True, help="Show deleted files in recycle bin")
+def file_list(keyword, page, page_size, recycle):
+    """List files/attachments. Optionally filter by keyword."""
+    vault = require_vault()
+    params = {"vault": vault, "page": page, "pageSize": page_size}
+    if keyword:
+        params["keyword"] = keyword
+    if recycle:
+        params["isRecycle"] = "true"
+
+    data = curl_request("GET", "/files", params=params)
+    if _ctx.get("json_output"):
+        click.echo(json.dumps(data, indent=2, ensure_ascii=False))
+        return
+
+    items = data.get("data", {}).get("list", [])
+    if items:
+        label = "🗑️ Recycle bin files" if recycle else "📎 Files"
+        _echo(f"{label} (Page {page}):\n")
+        for f in items:
+            fpath = f.get("path", "unknown")
+            size = f.get("size", 0)
+            size_str = _format_size(size)
+            _echo(f"  📄 {fpath} ({size_str})")
+        total = data.get("data", {}).get("pager", {}).get("totalRows", len(items))
+        _echo(f"\nTotal: {total} files")
+    else:
+        _echo("📭 No files found.")
+
+
+@cli.command("file-delete")
+@click.argument("path")
+def file_delete(path):
+    """Delete a file/attachment (soft delete to recycle bin)."""
+    vault = require_vault()
+    click.confirm(f"⚠️ Move file '{path}' to recycle bin?", abort=True)
+    data = curl_request("DELETE", "/file", params={"vault": vault, "path": path, "pathHash": _compute_path_hash(path)})
+    _handle_response(data, success_msg=f"✅ File '{path}' moved to recycle bin.")
+
+
+@cli.command("file-rename")
+@click.argument("old_path")
+@click.argument("new_path")
+def file_rename(old_path, new_path):
+    """Rename a file/attachment."""
+    vault = require_vault()
+    data = curl_request("POST", "/file/rename", json_data={
+        "vault": vault,
+        "oldPath": old_path,
+        "oldPathHash": _compute_path_hash(old_path),
+        "path": new_path,
+        "pathHash": _compute_path_hash(new_path),
+    })
+    _handle_response(data, success_msg=f"✅ Renamed '{old_path}' → '{new_path}'.")
+
+
+@cli.command("file-restore")
+@click.argument("path")
+def file_restore(path):
+    """Restore a file from the recycle bin."""
+    vault = require_vault()
+    data = curl_request("PUT", "/file/restore", json_data={
+        "vault": vault, "path": path, "pathHash": _compute_path_hash(path)
+    })
+    _handle_response(data, success_msg=f"✅ Restored file '{path}' from recycle bin.")
+
+
+@cli.command("file-recycle-clear")
+@click.argument("paths", required=False, nargs=-1)
+def file_recycle_clear(paths):
+    """Permanently delete files from recycle bin."""
+    vault = require_vault()
+    if paths:
+        for p in paths:
+            data = curl_request("DELETE", "/file/recycle-clear", json_data={
+                "vault": vault, "path": p, "pathHash": _compute_path_hash(p)
+            })
+            _handle_response(data, success_msg=f"✅ Permanently deleted '{p}'.")
+    else:
+        click.confirm("⚠️ Permanently delete ALL files in recycle bin?", abort=True)
+        data = curl_request("DELETE", "/file/recycle-clear", json_data={"vault": vault})
+        _handle_response(data, success_msg="✅ Recycle bin cleared.")
 
 
 if __name__ == "__main__":
