@@ -18,14 +18,14 @@ import click
 __version__ = "0.6.0"
 
 def _compute_path_hash(path_str):
-    """Compute 32-bit FNV-1a hash for path (matches FNS server implementation)."""
-    FNV_32_PRIME = 16777619
-    FNV_32_OFFSET = 2166136261
-    h = FNV_32_OFFSET
+    """Compute 32-bit path hash matching FNS server implementation.
+    
+    Uses polynomial rolling hash: h = h * 31 + byte, then convert to signed int32.
+    """
+    h = 0
     for byte in path_str.encode("utf-8"):
-        h ^= byte
-        h = (h * FNV_32_PRIME) & 0xFFFFFFFF
-    # Convert to signed 32-bit integer (matches Go int32 behavior)
+        h = ((h * 31) + byte) & 0xFFFFFFFF
+    # Convert to signed 32-bit integer
     if h >= 0x80000000:
         h -= 0x100000000
     return str(h)
@@ -1029,7 +1029,8 @@ def health():
 @click.argument("name")
 def vault_create(name):
     """Create a new vault (requires confirmation)."""
-    vault = require_vault()  # Ensure user is authenticated
+    # API only requires token authentication, not vault config
+    get_token()
     click.confirm(f"⚠️ Create new vault '{name}'? This action cannot be undone", abort=True)
 
     data = curl_request("POST", "/vault", json_data={"vault": name})
