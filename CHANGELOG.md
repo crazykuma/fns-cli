@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-04-12
+### Added
+- **Folder Management**: Added commands for creating, listing, and managing folders.
+  - `mkdir <path>`: Create a new folder.
+  - `folder <path>`: Get folder metadata.
+  - `folder-list [path]`: List sub-folders.
+  - `folder-files <path>`: List files in a folder.
+  - `folder-notes <path>`: List notes in a folder.
+  - `folder-tree`: Show folder tree structure.
+  - `folder-delete <path>`: Soft delete a folder.
+
+
+
 ## [0.5.0] - 2026-04-12
 
 ### Added

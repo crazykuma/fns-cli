@@ -15,16 +15,19 @@ if sys.platform == "win32":
 
 import click
 
-__version__ = "0.5.0"
+__version__ = "0.6.0"
 
 def _compute_path_hash(path_str):
-    """Compute 32-bit FNV-1a hash for path (matches FNS server implementation)."""
-    FNV_32_PRIME = 16777619
-    FNV_32_OFFSET = 2166136261
-    h = FNV_32_OFFSET
+    """Compute 32-bit path hash matching FNS server implementation.
+    
+    Uses polynomial rolling hash: h = h * 31 + byte, then convert to signed int32.
+    """
+    h = 0
     for byte in path_str.encode("utf-8"):
-        h ^= byte
-        h = (h * FNV_32_PRIME) & 0xFFFFFFFF
+        h = ((h * 31) + byte) & 0xFFFFFFFF
+    # Convert to signed 32-bit integer
+    if h >= 0x80000000:
+        h -= 0x100000000
     return str(h)
 
 # Config directory: ~/.config/fns-cli/ (cross-platform, consistent with other CLI tools)
@@ -42,6 +45,18 @@ def _echo(text, **kwargs):
     """Print unless quiet mode is enabled."""
     if not _ctx.get("quiet"):
         click.echo(text, **kwargs)
+
+
+def _format_size(num_bytes):
+    """Format file size in bytes to human readable string."""
+    if num_bytes is None:
+        return "0 B"
+    for unit in ["B", "KB", "MB", "GB", "TB"]:
+        if num_bytes < 1024.0:
+            return f"{num_bytes:.1f} {unit}"
+        num_bytes /= 1024.0
+    return f"{num_bytes:.1f} PB"
+
 
 def format_timestamp(ts_ms):
     """Convert millisecond Unix timestamp to human-readable local time."""
@@ -660,14 +675,31 @@ def backlinks(path):
         click.echo(json.dumps(data, indent=2, ensure_ascii=False))
         return
 
-    links = data.get("data", {}).get("list", data.get("data", []))
+    if not data:
+        _echo(f"📭 No backlinks found for '{path}'.")
+        return
+    data_section = data.get("data")
+    if not data_section:
+        _echo(f"📭 No backlinks found for '{path}'.")
+        return
+    if isinstance(data_section, list):
+        links = data_section
+    elif isinstance(data_section, dict):
+        links = data_section.get("list", [])
+    else:
+        links = []
     if isinstance(links, dict):
         links = links.get("list", [])
     if links:
         _echo(f"🔗 Backlinks for '{path}':\n")
         for link in links:
             link_path = link.get("path", link.get("name", "unknown"))
-            _echo(f"  📄 {link_path}")
+            context = link.get("context", "")
+            if context:
+                _echo(f"  📄 {link_path}")
+                _echo(f"     {context}")
+            else:
+                _echo(f"  📄 {link_path}")
         _echo(f"\nTotal: {len(links)}")
     else:
         _echo(f"📭 No backlinks found for '{path}'.")
@@ -682,14 +714,31 @@ def outlinks(path):
         click.echo(json.dumps(data, indent=2, ensure_ascii=False))
         return
 
-    links = data.get("data", {}).get("list", data.get("data", []))
+    if not data:
+        _echo(f"📭 No outlinks found for '{path}'.")
+        return
+    data_section = data.get("data")
+    if not data_section:
+        _echo(f"📭 No outlinks found for '{path}'.")
+        return
+    if isinstance(data_section, list):
+        links = data_section
+    elif isinstance(data_section, dict):
+        links = data_section.get("list", [])
+    else:
+        links = []
     if isinstance(links, dict):
         links = links.get("list", [])
     if links:
         _echo(f"🔗 Outlinks from '{path}':\n")
         for link in links:
             link_path = link.get("path", link.get("name", "unknown"))
-            _echo(f"  📄 {link_path}")
+            context = link.get("context", "")
+            if context:
+                _echo(f"  📄 {link_path}")
+                _echo(f"     {context}")
+            else:
+                _echo(f"  📄 {link_path}")
         _echo(f"\nTotal: {len(links)}")
     else:
         _echo(f"📭 No outlinks found for '{path}'.")
@@ -764,6 +813,9 @@ def share(path, expire, password):
     # Get note's pathHash first
     path_hash = _compute_path_hash(path)
     note_data = curl_request("GET", "/note", params={"vault": vault, "path": path, "pathHash": path_hash})
+    if not note_data or not note_data.get("data"):
+        _echo(f"❌ Could not find note '{path}'.", err=True)
+        return
     actual_hash = note_data.get("data", {}).get("pathHash", "")
     if not actual_hash:
         _echo(f"❌ Could not find note '{path}'.", err=True)
@@ -782,10 +834,8 @@ def share(path, expire, password):
 
     share_data = data.get("data", {})
     if isinstance(share_data, str):
-        try:
-            share_data = json.loads(share_data)
-        except json.JSONDecodeError:
-            share_data = {}
+        try: share_data = json.loads(share_data)
+        except: share_data = {}
     if isinstance(share_data, list) and share_data:
         share_data = share_data[0]
     if isinstance(share_data, dict) and share_data:
@@ -979,7 +1029,8 @@ def health():
 @click.argument("name")
 def vault_create(name):
     """Create a new vault (requires confirmation)."""
-    vault = require_vault()  # Ensure user is authenticated
+    # API only requires token authentication, not vault config
+    get_token()
     click.confirm(f"⚠️ Create new vault '{name}'? This action cannot be undone", abort=True)
 
     data = curl_request("POST", "/vault", json_data={"vault": name})
@@ -996,6 +1047,168 @@ def vault_delete(vault_id):
 
     data = curl_request("DELETE", "/vault", params={"id": vault_id})
     _handle_response(data, success_msg=f"✅ Vault '{vault_id}' deleted permanently.")
+
+
+# ==================== Folder Commands (v0.6) ====================
+
+@cli.command("mkdir")
+@click.argument("path")
+def mkdir(path):
+    """Create a new folder or restore a deleted one."""
+    vault = require_vault()
+    path_hash = _compute_path_hash(path)
+    data = curl_request("POST", "/folder", json_data={"path": path, "vault": vault, "pathHash": path_hash})
+    _handle_response(data, success_msg=f"✅ Folder '{path}' created/restored.")
+
+@cli.command("folder")
+@click.argument("path")
+def folder(path):
+    """Get folder info by path."""
+    vault = require_vault()
+    # pathHash is optional for GET /folder; omitting it avoids hash mismatch errors
+    data = curl_request("GET", "/folder", params={"vault": vault, "path": path})
+    if _ctx.get("json_output"):
+        click.echo(json.dumps(data, indent=2, ensure_ascii=False))
+        return
+    
+    info = data.get("data", {})
+    if info:
+        _echo(f"📂 Folder Info for '{path}':")
+        _echo(f"  Path: {info.get('path', 'N/A')}")
+        _echo(f"  Created: {info.get('createdAt', 'N/A')}")
+        _echo(f"  Updated: {info.get('updatedAt', 'N/A')}")
+    else:
+        _echo(f"❌ Folder not found or error: {data.get('message', 'Unknown')}", err=True)
+
+@cli.command("folder-files")
+@click.argument("path")
+@click.option("--page", default=1, help="Page number")
+@click.option("--page-size", "page_size", default=20, help="Items per page")
+def folder_files(path, page, page_size):
+    """List files in a specific folder."""
+    vault = require_vault()
+    data = curl_request("GET", "/folder/files", params={
+        "vault": vault, "path": path, "page": page, "pageSize": page_size
+    })
+    if _ctx.get("json_output"):
+        click.echo(json.dumps(data, indent=2, ensure_ascii=False))
+        return
+
+    items = data.get("data", {}).get("list", [])
+    if items:
+        _echo(f"📁 Files in '{path}' (Page {page}):\n")
+        for f in items:
+            name = f.get("path", "N/A")
+            size = f.get("size", 0)
+            mtime = f.get("updatedAt", f.get("mtime", ""))
+            _echo(f"  📄 {name} ({_format_size(size)})")
+            if mtime: _echo(f"     └─ Modified: {mtime}")
+        _echo(f"\nTotal: {len(items)} items on this page.")
+    else:
+        _echo(f"📭 No files found in '{path}'.")
+
+@cli.command("folder-notes")
+@click.argument("path")
+@click.option("--page", default=1, help="Page number")
+@click.option("--page-size", "page_size", default=20, help="Items per page")
+def folder_notes(path, page, page_size):
+    """List notes in a specific folder."""
+    vault = require_vault()
+    data = curl_request("GET", "/folder/notes", params={
+        "vault": vault, "path": path, "page": page, "pageSize": page_size
+    })
+    if _ctx.get("json_output"):
+        click.echo(json.dumps(data, indent=2, ensure_ascii=False))
+        return
+
+    items = data.get("data", {}).get("list", [])
+    if items:
+        _echo(f"📝 Notes in '{path}' (Page {page}):\n")
+        for n in items:
+            name = n.get("path", "N/A")
+            size = n.get("size", 0)
+            version = n.get("version", "")
+            mtime = n.get("updatedAt", "")
+            _echo(f"  📄 {name} ({_format_size(size)})")
+            if version: _echo(f"     └─ v{version} | Updated: {mtime}")
+        _echo(f"\nTotal: {len(items)} notes on this page.")
+    else:
+        _echo(f"📭 No notes found in '{path}'.")
+
+@cli.command("folder-list")
+@click.argument("path", required=False, default="")
+def folder_list(path):
+    """List sub-folders. If no path given, lists root folders."""
+    vault = require_vault()
+    params = {"vault": vault}
+    if path:
+        params["path"] = path
+    
+    data = curl_request("GET", "/folders", params=params)
+    if _ctx.get("json_output"):
+        click.echo(json.dumps(data, indent=2, ensure_ascii=False))
+        return
+
+    folders = data.get("data", [])
+    # Handle case where data might be a dict with a list inside
+    if isinstance(data.get("data"), dict):
+        folders = data["data"].get("list", [data["data"]])
+        
+    target = path if path else "Root"
+    if folders:
+        _echo(f"📂 Sub-folders in '{target}':\n")
+        for f in folders:
+            name = f.get("path", "N/A")
+            mtime = f.get("updatedAt", f.get("mtime", ""))
+            _echo(f"  📂 {name}")
+            if mtime: _echo(f"     └─ Modified: {mtime}")
+        _echo(f"\nTotal: {len(folders)} sub-folders.")
+    else:
+        _echo(f"📭 No sub-folders found in '{target}'.")
+
+@cli.command("folder-delete")
+@click.argument("path")
+def folder_delete(path):
+    """Delete a folder (soft delete)."""
+    vault = require_vault()
+    click.confirm(f"⚠️ Move folder '{path}' to recycle bin?", abort=True)
+    data = curl_request("DELETE", "/folder", json_data={"path": path, "vault": vault})
+    _handle_response(data, success_msg=f"✅ Folder '{path}' moved to recycle bin.")
+
+@cli.command("folder-tree")
+@click.option("--depth", default=3, help="Max depth of the tree")
+def folder_tree(depth):
+    """Display the folder tree structure."""
+    vault = require_vault()
+    data = curl_request("GET", "/folder/tree", params={"vault": vault, "depth": depth})
+    if _ctx.get("json_output"):
+        click.echo(json.dumps(data, indent=2, ensure_ascii=False))
+        return
+    
+    tree_data = data.get("data", {})
+    folders = tree_data.get("folders", [])
+    
+    _echo(f"🌳 Folder Tree (Vault: {vault}, Depth: {depth}):\n")
+    
+    def _print_tree(nodes, indent=0):
+        for node in nodes:
+            name = node.get("name", node.get("path", "N/A"))
+            note_count = node.get("noteCount", 0)
+            file_count = node.get("fileCount", 0)
+            counts = ""
+            if note_count or file_count:
+                counts = f" ({note_count} notes, {file_count} files)"
+            
+            prefix = "  " * indent + ("└── " if indent > 0 else "")
+            _echo(f"{prefix}📂 {name}{counts}")
+            
+            children = node.get("children", [])
+            if children:
+                _print_tree(children, indent + 1)
+
+    _print_tree(folders)
+    _echo(f"\n📊 Root Stats: {tree_data.get('rootNoteCount', 0)} notes, {tree_data.get('rootFileCount', 0)} files")
+
 
 if __name__ == "__main__":
     cli()

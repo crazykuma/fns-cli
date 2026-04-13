@@ -44,6 +44,12 @@ FNS CLI 是一个强大的命令行工具，用于与 **[Fast Note Sync (FNS)](h
 - **出站链接** — 查看当前笔记链接到哪些笔记
 - **目录树** — 浏览 Vault 的目录结构
 
+### 文件夹管理
+- **创建与删除** — `mkdir`, `folder-delete`
+- **浏览** — `folder-list`, `folder-tree`
+- **内容列表** — `folder-files`, `folder-notes`
+- **元数据** — `folder`
+
 ### 分享与元数据
 - **分享链接** — 创建可分享的 URL，支持密码和过期时间
 - **Frontmatter 编辑** — 查看和修改笔记元数据（标签、标题等）
@@ -135,6 +141,12 @@ fns tree [路径]                      # 查看目录树结构
 fns backlinks <路径>                 # 链接到当前笔记的笔记
 fns outlinks <路径>                  # 当前笔记链接到的笔记
 ```
+
+### 文件夹管理
+- **创建与删除** — `mkdir`, `folder-delete`
+- **浏览** — `folder-list`, `folder-tree`
+- **内容列表** — `folder-files`, `folder-notes`
+- **元数据** — `folder`
 
 ### 分享与元数据
 ```bash
