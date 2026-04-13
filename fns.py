@@ -20,11 +20,12 @@ __version__ = "0.7.0"
 def _compute_path_hash(path_str):
     """Compute 32-bit path hash matching FNS server implementation.
     
-    Uses polynomial rolling hash: h = h * 31 + byte, then convert to signed int32.
+    Uses polynomial rolling hash on Unicode code points: h = h * 31 + rune,
+    then convert to signed int32. (Go strings iterate over runes, not bytes.)
     """
     h = 0
-    for byte in path_str.encode("utf-8"):
-        h = ((h * 31) + byte) & 0xFFFFFFFF
+    for ch in path_str:
+        h = ((h * 31) + ord(ch)) & 0xFFFFFFFF
     # Convert to signed 32-bit integer
     if h >= 0x80000000:
         h -= 0x100000000
@@ -1244,8 +1245,11 @@ def file_download(path, output):
         _echo("⚠️ API URL not configured.", err=True)
         sys.exit(1)
 
-    url = f"{base_url}/file?vault={vault}&path={path}&pathHash={_compute_path_hash(path)}"
-    out_path = output or path.split("/")[-1]
+    # URL-encode path for safe transmission
+    from urllib.parse import quote
+    encoded_path = quote(path, safe="")
+    url = f"{base_url}/file?vault={vault}&path={encoded_path}&pathHash={_compute_path_hash(path)}"
+    out_path = output or path.split("/")[-1].split("\\")[-1]
 
     cmd = ["curl", "-s", "-o", out_path, url,
            "-H", f"Authorization: Bearer {get_token()}",
