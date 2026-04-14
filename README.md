@@ -50,6 +50,13 @@ This tool bridges the gap between **local Obsidian editing** and **cloud-based A
 - **List Content** — `folder-files`, `folder-notes`
 - **Metadata** — `folder`
 
+### File/Attachment Management
+- **View & Download** — `file-info`, `file-download [-o output]`
+- **List** — `file-list [keyword]`
+- **Delete & Restore** — `file-delete`, `file-restore`
+- **Rename** — `file-rename <old> <new>`
+- **Recycle** — `file-recycle-clear [paths]`
+
 ### Sharing & Metadata
 - **Share Links** — Create shareable URLs with optional password and expiry
 - **Frontmatter Editing** — View and modify note metadata (tags, title, etc.)
@@ -148,6 +155,13 @@ fns outlinks <path>                # Notes this one links to
 - **List Content** — `folder-files`, `folder-notes`
 - **Metadata** — `folder`
 
+### File/Attachment Management
+- **View & Download** — `file-info`, `file-download [-o output]`
+- **List** — `file-list [keyword]`
+- **Delete & Restore** — `file-delete`, `file-restore`
+- **Rename** — `file-rename <old> <new>`
+- **Recycle** — `file-recycle-clear [paths]`
+
 ### Sharing & Metadata
 ```bash
 fns share <path> [--expire 24h] [--password secret]  # Create share link
@@ -165,6 +179,17 @@ fns folder-files <path>              # List files in a folder
 fns folder-notes <path>              # List notes in a folder
 fns folder-tree [--depth N]          # View folder tree
 fns folder-delete <path>             # Delete folder (soft delete)
+```
+
+### File/Attachment Management
+```bash
+fns file-info <path>                 # View file metadata
+fns file-download <path> [-o file]   # Download file to local
+fns file-list [keyword]              # List files with pagination
+fns file-delete <path>               # Delete file (to recycle bin)
+fns file-rename <old> <new>          # Rename file
+fns file-restore <path>              # Restore file from recycle bin
+fns file-recycle-clear [paths]       # Clear file recycle bin
 ```
 
 ### Vault & Server

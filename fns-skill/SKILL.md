@@ -192,3 +192,12 @@ fns append "daily/notes.md" @todo-list.md
 - `fns folder-notes <path>`: List notes.
 - `fns folder-tree`: Show tree.
 - `fns folder-delete <path>`: Delete folder.
+
+## v0.7 File/Attachment Management
+- `fns file-info <path>`: View file metadata (path, size, contentHash).
+- `fns file-download <path> [-o file]`: Download file to local disk.
+- `fns file-list [keyword]`: List files with pagination.
+- `fns file-delete <path>`: Soft delete file to recycle bin.
+- `fns file-rename <old> <new>`: Rename file.
+- `fns file-restore <path>`: Restore file from recycle bin.
+- `fns file-recycle-clear [paths]`: Permanently delete files from recycle bin.

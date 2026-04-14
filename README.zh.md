@@ -50,6 +50,13 @@ FNS CLI 是一个强大的命令行工具，用于与 **[Fast Note Sync (FNS)](h
 - **内容列表** — `folder-files`, `folder-notes`
 - **元数据** — `folder`
 
+### 文件/附件管理
+- **查看与下载** — `file-info`, `file-download [-o 文件]`
+- **列表** — `file-list [关键词]`
+- **删除与恢复** — `file-delete`, `file-restore`
+- **重命名** — `file-rename <旧> <新>`
+- **回收** — `file-recycle-clear [路径]`
+
 ### 分享与元数据
 - **分享链接** — 创建可分享的 URL，支持密码和过期时间
 - **Frontmatter 编辑** — 查看和修改笔记元数据（标签、标题等）
@@ -143,10 +150,26 @@ fns outlinks <路径>                  # 当前笔记链接到的笔记
 ```
 
 ### 文件夹管理
-- **创建与删除** — `mkdir`, `folder-delete`
-- **浏览** — `folder-list`, `folder-tree`
-- **内容列表** — `folder-files`, `folder-notes`
-- **元数据** — `folder`
+```bash
+fns mkdir <路径>                     # 创建文件夹
+fns folder <路径>                    # 查看文件夹信息
+fns folder-list [路径]               # 列出子文件夹
+fns folder-files <路径>              # 列出文件夹内的文件
+fns folder-notes <路径>              # 列出文件夹内的笔记
+fns folder-tree [--depth N]          # 查看文件夹树
+fns folder-delete <路径>             # 删除文件夹（软删除）
+```
+
+### 文件/附件管理
+```bash
+fns file-info <路径>                 # 查看文件元数据
+fns file-download <路径> [-o 文件]   # 下载文件到本地
+fns file-list [关键词]               # 分页列出文件
+fns file-delete <路径>               # 删除文件（移入回收站）
+fns file-rename <旧> <新>            # 重命名文件
+fns file-restore <路径>              # 从回收站恢复文件
+fns file-recycle-clear [路径]        # 清空文件回收站
+```
 
 ### 分享与元数据
 ```bash
