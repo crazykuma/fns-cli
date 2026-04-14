@@ -1352,5 +1352,244 @@ def file_recycle_clear(paths):
         _handle_response(data, success_msg="✅ Recycle bin cleared.")
 
 
+# ==================== Settings Commands (v0.8) ====================
+
+@cli.command("setting-list")
+@click.argument("keyword", required=False, default="")
+@click.option("--page", default=1, help="Page number")
+@click.option("--page-size", "page_size", default=20, help="Items per page")
+def setting_list(keyword, page, page_size):
+    """List user settings. Optionally filter by keyword."""
+    vault = require_vault()
+    params = {"vault": vault, "page": page, "pageSize": page_size}
+    if keyword:
+        params["keyword"] = keyword
+
+    data = curl_request("GET", "/settings", params=params)
+    if _ctx.get("json_output"):
+        click.echo(json.dumps(data, indent=2, ensure_ascii=False))
+        return
+
+    items = data.get("data", {}).get("list", [])
+    if items:
+        _echo(f"⚙️ Settings (Page {page}):\n")
+        for s in items:
+            spath = s.get("path", "unknown")
+            size = s.get("size", 0)
+            size_str = _format_size(size)
+            _echo(f"  📄 {spath} ({size_str})")
+        total = data.get("data", {}).get("pager", {}).get("totalRows", len(items))
+        _echo(f"\nTotal: {total} settings")
+    else:
+        _echo("📭 No settings found.")
+
+
+@cli.command("setting-get")
+@click.argument("path")
+def setting_get(path):
+    """Get a setting by path."""
+    vault = require_vault()
+    data = curl_request("GET", "/setting", params={"vault": vault, "path": path, "pathHash": _compute_path_hash(path)})
+    if _ctx.get("json_output"):
+        click.echo(json.dumps(data, indent=2, ensure_ascii=False))
+        return
+
+    info = data.get("data", {})
+    if info:
+        content = info.get("content", "")
+        if content:
+            _echo(content)
+        else:
+            _echo(f"⚙️ Setting '{path}':")
+            for key in ("path", "size", "contentHash", "createdAt", "updatedAt"):
+                if key in info and info[key]:
+                    _echo(f"  {key}: {info[key]}")
+    else:
+        _echo(f"❌ Setting not found: {data.get('message', 'Unknown')}", err=True)
+
+
+@cli.command("setting-create")
+@click.argument("path")
+@click.argument("content")
+def setting_create(path, content):
+    """Create or update a setting."""
+    vault = require_vault()
+    if content.startswith("@"):
+        file_path = content[1:]
+        if Path(file_path).exists():
+            content = Path(file_path).read_text(encoding="utf-8")
+        else:
+            _echo(f"❌ File not found: {file_path}", err=True)
+            sys.exit(1)
+
+    data = curl_request("POST", "/setting", json_data={
+        "vault": vault, "path": path, "pathHash": _compute_path_hash(path), "content": content
+    })
+    _handle_response(data, success_msg=f"✅ Setting '{path}' updated.")
+
+
+@cli.command("setting-delete")
+@click.argument("path")
+def setting_delete(path):
+    """Delete a setting (soft delete)."""
+    vault = require_vault()
+    click.confirm(f"⚠️ Delete setting '{path}'?", abort=True)
+    data = curl_request("DELETE", "/setting", params={"vault": vault, "path": path, "pathHash": _compute_path_hash(path)})
+    _handle_response(data, success_msg=f"✅ Setting '{path}' deleted.")
+
+
+@cli.command("setting-rename")
+@click.argument("old_path")
+@click.argument("new_path")
+def setting_rename(old_path, new_path):
+    """Rename a setting."""
+    vault = require_vault()
+    data = curl_request("POST", "/setting/rename", json_data={
+        "vault": vault,
+        "oldPath": old_path,
+        "oldPathHash": _compute_path_hash(old_path),
+        "newPath": new_path,
+        "pathHash": _compute_path_hash(new_path),
+    })
+    _handle_response(data, success_msg=f"✅ Renamed '{old_path}' → '{new_path}'.")
+
+
+# ==================== Backup Commands (v0.8) ====================
+
+@cli.command("backup-list")
+def backup_list():
+    """List backup configurations."""
+    vault = require_vault()
+    data = curl_request("GET", "/backup/configs", params={"vault": vault})
+    if _ctx.get("json_output"):
+        click.echo(json.dumps(data, indent=2, ensure_ascii=False))
+        return
+
+    items = data.get("data", [])
+    if isinstance(items, dict):
+        items = items.get("list", [])
+    if items:
+        _echo("💾 Backup configurations:\n")
+        for b in items:
+            name = b.get("name", b.get("id", "unknown"))
+            status = b.get("status", "")
+            _echo(f"  📦 {name} ({status})")
+        _echo(f"\nTotal: {len(items)}")
+    else:
+        _echo("📭 No backup configurations found.")
+
+
+@cli.command("backup-create")
+@click.argument("name")
+@click.option("--type", "backup_type", default="local", help="Backup type (local, s3, etc.)")
+def backup_create(name, backup_type):
+    """Create a new backup configuration."""
+    vault = require_vault()
+    data = curl_request("POST", "/backup/config", json_data={
+        "vault": vault, "name": name, "type": backup_type
+    })
+    _handle_response(data, success_msg=f"✅ Backup config '{name}' created.")
+
+
+@cli.command("backup-delete")
+@click.argument("name")
+def backup_delete(name):
+    """Delete a backup configuration."""
+    vault = require_vault()
+    click.confirm(f"⚠️ Delete backup config '{name}'?", abort=True)
+    data = curl_request("DELETE", "/backup/config", params={"vault": vault, "name": name})
+    _handle_response(data, success_msg=f"✅ Backup config '{name}' deleted.")
+
+
+@cli.command("backup-run")
+@click.argument("name")
+def backup_run(name):
+    """Manually trigger a backup."""
+    vault = require_vault()
+    data = curl_request("POST", "/backup/execute", json_data={"vault": vault, "name": name})
+    _handle_response(data, success_msg=f"✅ Backup '{name}' triggered.")
+
+
+@cli.command("backup-history")
+@click.argument("name")
+@click.option("--page", default=1, help="Page number")
+@click.option("--page-size", "page_size", default=20, help="Items per page")
+def backup_history(name, page, page_size):
+    """View backup execution history."""
+    vault = require_vault()
+    data = curl_request("GET", "/backup/historys", params={
+        "vault": vault, "name": name, "page": page, "pageSize": page_size
+    })
+    if _ctx.get("json_output"):
+        click.echo(json.dumps(data, indent=2, ensure_ascii=False))
+        return
+
+    items = data.get("data", {}).get("list", [])
+    if items:
+        _echo(f"💾 Backup history for '{name}' (Page {page}):\n")
+        for b in items:
+            ts = b.get("createdAt", b.get("startTime", ""))
+            status = b.get("status", "unknown")
+            size = b.get("size", 0)
+            _echo(f"  📦 {ts} - {status} ({_format_size(size)})")
+        _echo(f"\nTotal: {len(items)} records")
+    else:
+        _echo(f"📭 No backup history for '{name}'.")
+
+
+# ==================== Share Short Link (v0.8) ====================
+
+@cli.command("share-link")
+@click.argument("path")
+def share_link(path):
+    """Generate a short share link for a note."""
+    vault = require_vault()
+    # First get the note's pathHash
+    path_hash = _compute_path_hash(path)
+    note_data = curl_request("GET", "/note", params={"vault": vault, "path": path, "pathHash": path_hash})
+    if not note_data or not note_data.get("data"):
+        _echo(f"❌ Could not find note '{path}'.", err=True)
+        return
+    actual_hash = note_data.get("data", {}).get("pathHash", "")
+    if not actual_hash:
+        _echo(f"❌ Could not find note '{path}'.", err=True)
+        return
+
+    data = curl_request("POST", "/share/short_link", json_data={
+        "vault": vault, "path": path, "pathHash": actual_hash
+    })
+    if _ctx.get("json_output"):
+        click.echo(json.dumps(data, indent=2, ensure_ascii=False))
+        return
+
+    link_data = data.get("data", {})
+    if isinstance(link_data, str):
+        try:
+            link_data = json.loads(link_data)
+        except:
+            link_data = {}
+    short_url = link_data.get("url", link_data.get("shortUrl", link_data.get("link", "")))
+    if short_url:
+        _echo(f"🔗 Short link for '{path}':\n  {short_url}")
+    else:
+        _echo(f"❌ Failed to generate short link: {json.dumps(data, indent=2, ensure_ascii=False)}", err=True)
+
+
+# ==================== User Commands (v0.8) ====================
+
+@cli.command("change-password")
+@click.argument("old_password")
+@click.argument("new_password")
+def change_password(old_password, new_password):
+    """Change your account password."""
+    click.confirm("⚠️ Change password? This action cannot be undone.", abort=True)
+    data = curl_request("POST", "/user/change_password", json_data={
+        "oldPassword": old_password,
+        "password": new_password,
+        "confirmPassword": new_password,
+    })
+    _handle_response(data, success_msg="✅ Password changed successfully.")
+
+
 if __name__ == "__main__":
     cli()
