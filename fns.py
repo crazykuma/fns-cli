@@ -1459,8 +1459,7 @@ def setting_rename(old_path, new_path):
 @cli.command("backup-list")
 def backup_list():
     """List backup configurations."""
-    vault = require_vault()
-    data = curl_request("GET", "/backup/configs", params={"vault": vault})
+    data = curl_request("GET", "/backup/configs")
     if _ctx.get("json_output"):
         click.echo(json.dumps(data, indent=2, ensure_ascii=False))
         return
@@ -1471,54 +1470,74 @@ def backup_list():
     if items:
         _echo("💾 Backup configurations:\n")
         for b in items:
-            name = b.get("name", b.get("id", "unknown"))
-            status = b.get("status", "")
-            _echo(f"  📦 {name} ({status})")
+            bid = b.get("id", "unknown")
+            vault = b.get("vault", "")
+            btype = b.get("type", "")
+            enabled = "enabled" if b.get("isEnabled") else "disabled"
+            _echo(f"  📦 #{bid} - {vault} ({btype}, {enabled})")
         _echo(f"\nTotal: {len(items)}")
     else:
         _echo("📭 No backup configurations found.")
 
 
 @cli.command("backup-create")
-@click.argument("name")
-@click.option("--type", "backup_type", default="local", help="Backup type (local, s3, etc.)")
-def backup_create(name, backup_type):
-    """Create a new backup configuration."""
-    vault = require_vault()
+@click.argument("vault")
+@click.option("--storage-ids", "storage_ids", required=True, help="Storage IDs (comma-separated, e.g. 1,2)")
+@click.option("--cron", "cron_strategy", required=True, type=click.Choice(["daily", "weekly", "monthly", "custom"]), help="Backup schedule")
+@click.option("--type", "backup_type", default="sync", type=click.Choice(["full", "incremental", "sync"]), help="Backup type")
+@click.option("--cron-expr", "cron_expr", help="Custom cron expression (required if cron=custom)")
+@click.option("--retention", "retention_days", default=7, help="Retention days (-1 for forever)")
+@click.option("--enabled/--disabled", "is_enabled", default=True, help="Enable backup")
+def backup_create(vault, storage_ids, cron_strategy, backup_type, cron_expr, retention_days, is_enabled):
+    """Create a new backup configuration.
+    
+    STORAGE_IDS: Comma-separated storage IDs (e.g. 1,2)
+    CRON: daily, weekly, monthly, or custom (requires --cron-expr)
+    """
+    if cron_strategy == "custom" and not cron_expr:
+        _echo("❌ --cron-expr is required when --cron=custom", err=True)
+        sys.exit(1)
+
     data = curl_request("POST", "/backup/config", json_data={
-        "vault": vault, "name": name, "type": backup_type
+        "vault": vault,
+        "type": backup_type,
+        "storageIds": f"[{storage_ids}]",
+        "cronStrategy": cron_strategy,
+        "cronExpression": cron_expr or "0 0 * * *",
+        "retentionDays": retention_days,
+        "isEnabled": is_enabled,
     })
-    _handle_response(data, success_msg=f"✅ Backup config '{name}' created.")
+    if _ctx.get("json_output"):
+        click.echo(json.dumps(data, indent=2, ensure_ascii=False))
+        return
+    _handle_response(data, success_msg=f"✅ Backup config created for vault '{vault}'.")
 
 
 @cli.command("backup-delete")
-@click.argument("name")
-def backup_delete(name):
-    """Delete a backup configuration."""
-    vault = require_vault()
-    click.confirm(f"⚠️ Delete backup config '{name}'?", abort=True)
-    data = curl_request("DELETE", "/backup/config", params={"vault": vault, "name": name})
-    _handle_response(data, success_msg=f"✅ Backup config '{name}' deleted.")
+@click.argument("config_id", type=int)
+def backup_delete(config_id):
+    """Delete a backup configuration by ID."""
+    click.confirm(f"⚠️ Delete backup config #{config_id}?", abort=True)
+    data = curl_request("DELETE", "/backup/config", params={"id": config_id})
+    _handle_response(data, success_msg=f"✅ Backup config #{config_id} deleted.")
 
 
 @cli.command("backup-run")
-@click.argument("name")
-def backup_run(name):
-    """Manually trigger a backup."""
-    vault = require_vault()
-    data = curl_request("POST", "/backup/execute", json_data={"vault": vault, "name": name})
-    _handle_response(data, success_msg=f"✅ Backup '{name}' triggered.")
+@click.argument("config_id", type=int)
+def backup_run(config_id):
+    """Manually trigger a backup by config ID."""
+    data = curl_request("POST", "/backup/execute", json_data={"id": config_id})
+    _handle_response(data, success_msg=f"✅ Backup #{config_id} triggered.")
 
 
 @cli.command("backup-history")
-@click.argument("name")
+@click.argument("config_id", type=int)
 @click.option("--page", default=1, help="Page number")
 @click.option("--page-size", "page_size", default=20, help="Items per page")
-def backup_history(name, page, page_size):
-    """View backup execution history."""
-    vault = require_vault()
+def backup_history(config_id, page, page_size):
+    """View backup execution history by config ID."""
     data = curl_request("GET", "/backup/historys", params={
-        "vault": vault, "name": name, "page": page, "pageSize": page_size
+        "configId": config_id, "page": page, "pageSize": page_size
     })
     if _ctx.get("json_output"):
         click.echo(json.dumps(data, indent=2, ensure_ascii=False))
@@ -1526,15 +1545,20 @@ def backup_history(name, page, page_size):
 
     items = data.get("data", {}).get("list", [])
     if items:
-        _echo(f"💾 Backup history for '{name}' (Page {page}):\n")
+        _echo(f"💾 Backup history for config #{config_id} (Page {page}):\n")
         for b in items:
-            ts = b.get("createdAt", b.get("startTime", ""))
+            ts = b.get("startTime", "")
+            if ts:
+                ts = ts.get("$date", ts) if isinstance(ts, dict) else ts
             status = b.get("status", "unknown")
-            size = b.get("size", 0)
-            _echo(f"  📦 {ts} - {status} ({_format_size(size)})")
+            status_map = {0: "Idle", 1: "Running", 2: "Success", 3: "Failed", 4: "Stopped"}
+            status_str = status_map.get(status, str(status))
+            size = b.get("fileSize", 0)
+            count = b.get("fileCount", 0)
+            _echo(f"  📦 {ts} - {status_str} ({_format_size(size)}, {count} files)")
         _echo(f"\nTotal: {len(items)} records")
     else:
-        _echo(f"📭 No backup history for '{name}'.")
+        _echo(f"📭 No backup history for config #{config_id}.")
 
 
 # ==================== Share Short Link (v0.8) ====================
