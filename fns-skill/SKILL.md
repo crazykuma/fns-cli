@@ -201,3 +201,17 @@ fns append "daily/notes.md" @todo-list.md
 - `fns file-rename <old> <new>`: Rename file.
 - `fns file-restore <path>`: Restore file from recycle bin.
 - `fns file-recycle-clear [paths]`: Permanently delete files from recycle bin.
+
+## v0.8 User Settings, Backup & Sharing
+- `fns setting-list [keyword]`: List user settings with pagination.
+- `fns setting-get <path>`: Get setting content.
+- `fns setting-create <path> <content>`: Create or update a setting.
+- `fns setting-delete <path>`: Soft delete a setting.
+- `fns setting-rename <old> <new>`: Rename a setting.
+- `fns backup-list`: List backup configurations.
+- `fns backup-create <vault> --storage-ids N --cron daily`: Create backup config.
+- `fns backup-delete <config_id>`: Delete backup config by ID.
+- `fns backup-run <config_id>`: Manually trigger a backup.
+- `fns backup-history <config_id>`: View backup execution history.
+- `fns share-link <path>`: Generate a short share URL.
+- `fns change-password <old> <new>`: Change account password.

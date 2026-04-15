@@ -171,6 +171,24 @@ fns file-restore <路径>              # 从回收站恢复文件
 fns file-recycle-clear [路径]        # 清空文件回收站
 ```
 
+### 用户设置与备份
+```bash
+fns setting-list [关键词]            # 分页列出设置
+fns setting-get <路径>               # 查看设置内容
+fns setting-create <路径> <内容>     # 创建/更新设置
+fns setting-delete <路径>            # 软删除设置
+fns setting-rename <旧> <新>         # 重命名设置
+
+fns backup-list                      # 列出备份配置
+fns backup-create <vault> --storage-ids N --cron daily  # 创建备份配置
+fns backup-delete <配置ID>           # 按 ID 删除备份配置
+fns backup-run <配置ID>              # 触发备份
+fns backup-history <配置ID>          # 查看备份历史
+
+fns share-link <路径>                # 生成短分享链接
+fns change-password <旧密码> <新密码> # 修改账户密码
+```
+
 ### 分享与元数据
 ```bash
 fns share <路径> [--expire 24h] [--password 密码]  # 创建分享链接

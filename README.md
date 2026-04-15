@@ -57,6 +57,12 @@ This tool bridges the gap between **local Obsidian editing** and **cloud-based A
 - **Rename** — `file-rename <old> <new>`
 - **Recycle** — `file-recycle-clear [paths]`
 
+### User Settings & Backup
+- **Settings** — `setting-list`, `setting-get`, `setting-create`, `setting-delete`, `setting-rename`
+- **Backup** — `backup-list`, `backup-create`, `backup-delete`, `backup-run`, `backup-history`
+- **Short Links** — `share-link <path>`
+- **Password** — `change-password <old> <new>`
+
 ### Sharing & Metadata
 - **Share Links** — Create shareable URLs with optional password and expiry
 - **Frontmatter Editing** — View and modify note metadata (tags, title, etc.)
@@ -162,6 +168,12 @@ fns outlinks <path>                # Notes this one links to
 - **Rename** — `file-rename <old> <new>`
 - **Recycle** — `file-recycle-clear [paths]`
 
+### User Settings & Backup
+- **Settings** — `setting-list`, `setting-get`, `setting-create`, `setting-delete`, `setting-rename`
+- **Backup** — `backup-list`, `backup-create`, `backup-delete`, `backup-run`, `backup-history`
+- **Short Links** — `share-link <path>`
+- **Password** — `change-password <old> <new>`
+
 ### Sharing & Metadata
 ```bash
 fns share <path> [--expire 24h] [--password secret]  # Create share link
@@ -190,6 +202,24 @@ fns file-delete <path>               # Delete file (to recycle bin)
 fns file-rename <old> <new>          # Rename file
 fns file-restore <path>              # Restore file from recycle bin
 fns file-recycle-clear [paths]       # Clear file recycle bin
+```
+
+### User Settings & Backup
+```bash
+fns setting-list [keyword]           # List settings with pagination
+fns setting-get <path>               # Get setting content
+fns setting-create <path> <content>  # Create/update setting
+fns setting-delete <path>            # Soft delete setting
+fns setting-rename <old> <new>       # Rename setting
+
+fns backup-list                      # List backup configurations
+fns backup-create <vault> --storage-ids N --cron daily  # Create backup config
+fns backup-delete <config_id>        # Delete backup config by ID
+fns backup-run <config_id>           # Trigger backup
+fns backup-history <config_id>       # View backup history
+
+fns share-link <path>                # Generate short share URL
+fns change-password <old> <new>      # Change account password
 ```
 
 ### Vault & Server
