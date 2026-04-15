@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-04-15
+### Added
+- **User Settings Management**: 5 new commands for user settings.
+  - `setting-list [keyword]`: List settings with pagination.
+  - `setting-get <path>`: Get setting content.
+  - `setting-create <path> <content>`: Create or update a setting.
+  - `setting-delete <path>`: Soft delete a setting.
+  - `setting-rename <old> <new>`: Rename a setting.
+- **Backup Management**: 5 new commands for backup configuration.
+  - `backup-list`: List backup configurations.
+  - `backup-create <vault> --storage-ids N --cron daily`: Create backup config (requires storage backend).
+  - `backup-delete <config_id>`: Delete backup config by ID.
+  - `backup-run <config_id>`: Trigger backup by config ID.
+  - `backup-history <config_id>`: View backup history by config ID.
+- **Share Short Link**: `share-link <path>`: Generate a short share URL.
+- **User Password**: `change-password <old> <new>`: Change account password.
+
+### Fixed
+- `setting-rename`: Fixed field name mismatch (`pathHash` → `newPathHash`) that caused "Setting already exists" error.
+
 ## [0.7.0] - 2026-04-13
 ### Added
 - **File Management**: 7 new commands for attachment management.
