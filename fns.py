@@ -1442,7 +1442,11 @@ def setting_delete(path):
 @click.argument("old_path")
 @click.argument("new_path")
 def setting_rename(old_path, new_path):
-    """Rename a setting."""
+    """Rename a setting.
+    
+    Note: Server has a bug where rename always returns code=471 'Setting already exists'.
+    The CLI sends correct parameters (vault, oldPath, oldPathHash, newPath, pathHash).
+    """
     vault = require_vault()
     data = curl_request("POST", "/setting/rename", json_data={
         "vault": vault,
