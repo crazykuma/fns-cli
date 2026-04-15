@@ -44,25 +44,6 @@ This tool bridges the gap between **local Obsidian editing** and **cloud-based A
 - **Outlinks** — See which notes the current note links to
 - **Folder Tree** — Browse your vault's directory structure
 
-### Folder Management
-- **Create & Delete** — `mkdir`, `folder-delete`
-- **Browse** — `folder-list`, `folder-tree`
-- **List Content** — `folder-files`, `folder-notes`
-- **Metadata** — `folder`
-
-### File/Attachment Management
-- **View & Download** — `file-info`, `file-download [-o output]`
-- **List** — `file-list [keyword]`
-- **Delete & Restore** — `file-delete`, `file-restore`
-- **Rename** — `file-rename <old> <new>`
-- **Recycle** — `file-recycle-clear [paths]`
-
-### User Settings & Backup
-- **Settings** — `setting-list`, `setting-get`, `setting-create`, `setting-delete`, `setting-rename`
-- **Backup** — `backup-list`, `backup-create`, `backup-delete`, `backup-run`, `backup-history`
-- **Short Links** — `share-link <path>`
-- **Password** — `change-password <old> <new>`
-
 ### Sharing & Metadata
 - **Share Links** — Create shareable URLs with optional password and expiry
 - **Frontmatter Editing** — View and modify note metadata (tags, title, etc.)
