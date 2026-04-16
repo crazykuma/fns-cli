@@ -15,7 +15,7 @@ if sys.platform == "win32":
 
 import click
 
-__version__ = "0.7.0"
+__version__ = "0.8.0"
 
 def _compute_path_hash(path_str):
     """Compute 32-bit path hash matching FNS server implementation.
