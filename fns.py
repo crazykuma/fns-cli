@@ -15,7 +15,7 @@ if sys.platform == "win32":
 
 import click
 
-__version__ = "0.7.0"
+__version__ = "0.8.1"
 
 def _compute_path_hash(path_str):
     """Compute 32-bit path hash matching FNS server implementation.
@@ -137,7 +137,8 @@ def curl_request(method, endpoint, params=None, json_data=None):
         url += f"?{urlencode(params)}"
 
     cmd = ["curl", "-s", "-X", method, url,
-           "-H", f"Authorization: Bearer {get_token()}"]
+           "-H", f"Authorization: Bearer {get_token()}",
+           "-H", "X-Client: ObsidianPlugin"]
 
     if json_data is not None:
         cmd.extend(["-H", "Content-Type: application/json",
@@ -214,7 +215,7 @@ def login(credentials, password, api_url):
     url = f"{base_url}/user/login"
     cmd = ["curl", "-s", "-X", "POST", url,
            "-H", "Content-Type: application/json",
-           "-d", json.dumps({"Credentials": credentials, "Password": password})]
+           "-d", json.dumps({"credentials": credentials, "password": password})]
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=15, encoding="utf-8", errors="replace")
         resp = json.loads(result.stdout)

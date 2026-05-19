@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-05-19
+### Fixed
+- Add `X-Client: ObsidianPlugin` header to all API requests to fix server v3.0.3 scope restriction
+- Fix login API field names: `Credentials`/`Password` → `credentials`/`password` (lowercase to match server API spec)
+
 ## [0.8.0] - 2026-04-15
 ### Added
 - **User Settings Management**: 5 new commands for user settings.
