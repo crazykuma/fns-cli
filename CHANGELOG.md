@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.2] - 2026-05-19
+### Fixed
+- Fix `fns login` by adding `X-Client: WebGui` and `User-Agent` headers to match server v3.0.3 login restriction
+- Update all API requests to use `X-Client: WebGui` header for consistent token validation
+
 ## [0.8.1] - 2026-05-19
 ### Fixed
 - Add `X-Client: ObsidianPlugin` header to all API requests to fix server v3.0.3 scope restriction
