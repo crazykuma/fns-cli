@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fns-cli"
-version = "0.8.1"
+version = "0.8.2"
 description = "CLI tool for Fast Note Sync (Obsidian)"
 readme = "README.md"
 license = {text = "MIT"}

@@ -15,7 +15,7 @@ if sys.platform == "win32":
 
 import click
 
-__version__ = "0.8.1"
+__version__ = "0.8.2"
 
 def _compute_path_hash(path_str):
     """Compute 32-bit path hash matching FNS server implementation.
@@ -138,7 +138,8 @@ def curl_request(method, endpoint, params=None, json_data=None):
 
     cmd = ["curl", "-s", "-X", method, url,
            "-H", f"Authorization: Bearer {get_token()}",
-           "-H", "X-Client: ObsidianPlugin"]
+           "-H", "X-Client: WebGui",
+           "-H", "User-Agent: Mozilla/5.0"]
 
     if json_data is not None:
         cmd.extend(["-H", "Content-Type: application/json",
@@ -215,6 +216,8 @@ def login(credentials, password, api_url):
     url = f"{base_url}/user/login"
     cmd = ["curl", "-s", "-X", "POST", url,
            "-H", "Content-Type: application/json",
+           "-H", "X-Client: WebGui",
+           "-H", "User-Agent: Mozilla/5.0",
            "-d", json.dumps({"credentials": credentials, "password": password})]
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=15, encoding="utf-8", errors="replace")
@@ -223,8 +226,8 @@ def login(credentials, password, api_url):
             click.echo(json.dumps(resp, indent=2, ensure_ascii=False))
             return
 
-        if resp.get("status") or resp.get("code", 0) >= 1:
-            token = resp.get("data", {}).get("token")
+        if resp.get("status") is True:
+            token = resp.get("data", {}).get("token") if isinstance(resp.get("data"), dict) else None
             if token:
                 TOKEN_FILE.write_text(token)
                 _echo(f"✅ Login successful. Token saved to {TOKEN_FILE}")
