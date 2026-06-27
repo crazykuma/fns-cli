@@ -25,10 +25,8 @@ cd fns-cli
 pip install -e .
 ```
 
-Or use directly without installation:
-```bash
-python fns.py <command> [args]
-```
+After installation, the `fns` command is available globally. No direct
+`python fns.py <command>` is needed — use `fns <command> [args]`.
 
 ## Setup
 
@@ -148,6 +146,38 @@ fns vault-info [id]                # Show vault details
 fns version                        # Show server version
 fns health                         # Check server health
 fns info                           # Show current user info
+```
+
+## Storage Management (v0.9+)
+
+```bash
+fns storage-list                   # List storage configurations
+fns storage-add <name> <type>      # Add storage (localfs/s3/oss/r2/minio/webdav)
+fns storage-remove <id>            # Remove storage by ID
+fns storage-validate <type>        # Test storage connection
+fns storage-enabled                # List enabled storage types
+```
+
+## Git Sync Management (v0.9+)
+
+```bash
+fns git-sync list                  # List git sync configurations
+fns git-sync add <name> --repo-url <url> [--branch main] [--interval 5m]
+fns git-sync remove <id>           # Remove configuration
+fns git-sync validate <id>         # Validate configuration
+fns git-sync run <id>              # Manually trigger sync
+fns git-sync clean <id>            # Clean local workspace
+fns git-sync history <id>          # View sync history
+```
+
+## Admin Operations (v0.9+, requires admin privileges)
+
+```bash
+fns admin-info                     # Show system and runtime info
+fns admin-restart                  # Gracefully restart server
+fns admin-upgrade <version>        # Trigger server upgrade
+fns admin-gc                       # Trigger manual GC
+fns admin-ws-clients               # List connected WebSocket clients
 ```
 
 ## Global Flags
