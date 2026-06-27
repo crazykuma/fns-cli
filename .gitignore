@@ -28,7 +28,12 @@ Thumbs.db
 fns-cli/token
 .qwen/
 QWEN.md
+reasonix/
+reasonix.toml
 
 # Test scripts
 test_e2e.py
 test-upload-temp.md
+
+# Obsidian plugin source (not part of fns-cli)
+*.ts

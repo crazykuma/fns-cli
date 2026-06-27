@@ -309,14 +309,6 @@ fns-cli/
 ├── fns-source/              # FNS Go backend server (submodule)
 ├── fns-skill/               # AI Agent Skill (portable)
 │   └── SKILL.md
-├── types.ts                 # Obsidian plugin types
-├── websocket_client.ts      # Obsidian plugin WebSocket client
-├── operator_file.ts         # Obsidian plugin file sync
-├── operator_config.ts       # Obsidian plugin config sync
-├── helpers.ts               # Obsidian plugin utilities
-├── websocket_action.ts      # Obsidian plugin WebSocket actions
-├── concurrency_limiter.ts   # Obsidian plugin concurrency control
-├── reasonix.toml            # AI agent reasoning config
 └── .github/workflows/ci.yml # CI for Python CLI
 ```
 
