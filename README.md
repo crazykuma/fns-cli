@@ -62,6 +62,9 @@ This tool bridges the gap between **local Obsidian editing** and **cloud-based A
 ### Administration
 - **Vault Management** — List, view details, create, delete vaults
 - **Server Status** — Check version and health
+- **Storage Management** — Add/remove/validate storage backends (S3, OSS, WebDAV, etc.)
+- **Git Sync** — Manage git sync configurations, trigger syncs, view history
+- **Admin Operations** — System info, restart, upgrade, GC, WebSocket clients (requires admin privileges)
 - **Auto-Setup** — Interactive guide on first login (URL → credentials → vault selection)
 
 ## 📦 Installation
@@ -83,6 +86,8 @@ pip install -e .
 ```
 
 **Dependencies**: `click>=8.1` (installed automatically) + `curl` (pre-installed on most systems)
+
+After installation, the `fns` command is available globally.
 
 ## ⚙️ Quick Setup
 
@@ -177,6 +182,36 @@ fns recycle-bin [keyword]          # View recycle bin
 fns version                        # Show server version
 fns health                         # Check server health
 fns info                           # Show current user info
+fns change-password <old> <new>    # Change account password
+```
+
+### Storage Management (v0.9+)
+```bash
+fns storage-list                   # List storage configurations
+fns storage-add <name> <type>      # Add storage (localfs/s3/oss/r2/minio/webdav)
+fns storage-remove <id>            # Remove storage by ID
+fns storage-validate <type>        # Test storage connection
+fns storage-enabled                # List enabled storage types
+```
+
+### Git Sync Management (v0.9+)
+```bash
+fns git-sync list                  # List git sync configurations
+fns git-sync add <name> --repo-url <url> [--branch main] [--interval 5m]
+fns git-sync remove <id>           # Remove configuration
+fns git-sync validate <id>         # Validate configuration
+fns git-sync run <id>              # Manually trigger sync
+fns git-sync clean <id>            # Clean local workspace
+fns git-sync history <id>          # View sync history
+```
+
+### Admin Operations (v0.9+, requires admin privileges)
+```bash
+fns admin-info                     # Show system and runtime info
+fns admin-restart                  # Gracefully restart server
+fns admin-upgrade <version>        # Trigger server upgrade
+fns admin-gc                       # Trigger manual GC
+fns admin-ws-clients               # List connected WebSocket clients
 ```
 
 ### Global Flags
@@ -204,20 +239,49 @@ fns read "projects/architecture.md" --json
 fns append "daily/2024-05-20.md" "- Completed architecture review"
 ```
 
-## 📁 File Structure
+## 📁 Project Structure
 
 ```
 fns-cli/
-├── fns.py              # Main CLI logic
-├── setup.py            # Installation script
-├── requirements.txt    # Dependencies
-├── tests/
-│   └── test_fns.py     # Unit tests
-├── README.md           # This file
-├── README.zh.md        # Chinese version
-├── skill.md            # Usage examples
-├── CHANGELOG.md        # Version history
-└── LICENSE             # MIT License
+├── pyproject.toml           # Package definition + fns command entry point
+├── fns_cli/                 # Python CLI package
+│   ├── __init__.py
+│   ├── main.py              # Click entry point + global options + login/config/health/version
+│   ├── api.py               # HTTP request layer (curl subprocess)
+│   ├── config.py            # Config management (load/save/require_vault)
+│   ├── hashing.py           # Path hash computation (32-bit rolling hash)
+│   ├── formatting.py        # Output formatting (timestamp/size/echo)
+│   ├── commands/
+│   │   ├── __init__.py
+│   │   ├── note.py          # read/write/delete/append/prepend/replace/move/rename/restore/frontmatter/backlinks/outlinks
+│   │   ├── folder.py        # mkdir/folder/folder-files/notes/list/delete/tree
+│   │   ├── file.py          # file-info/list/delete/rename/restore/download
+│   │   ├── share.py         # share/unshare/shares/password/paths/link
+│   │   ├── setting.py       # setting-list/get/create/delete/rename
+│   │   ├── backup.py        # backup-list/create/delete/run/history
+│   │   ├── vault.py         # vaults/info/create/delete
+│   │   ├── storage.py       # storage-list/add/remove/validate/enabled
+│   │   ├── git_sync.py      # git-sync list/add/remove/validate/run/clean/history
+│   │   └── admin.py         # admin-info/restart/upgrade/gc/ws-clients
+│   └── tests/
+│       ├── __init__.py
+│       ├── test_api.py
+│       ├── test_formatting.py
+│       ├── test_hashing.py
+│       └── commands/
+│           └── test_note.py
+├── fns-source/              # FNS Go backend server (submodule)
+├── fns-skill/               # AI Agent Skill (portable)
+│   └── SKILL.md
+├── types.ts                 # Obsidian plugin types
+├── websocket_client.ts      # Obsidian plugin WebSocket client
+├── operator_file.ts         # Obsidian plugin file sync
+├── operator_config.ts       # Obsidian plugin config sync
+├── helpers.ts               # Obsidian plugin utilities
+├── websocket_action.ts      # Obsidian plugin WebSocket actions
+├── concurrency_limiter.ts   # Obsidian plugin concurrency control
+├── reasonix.toml            # AI agent reasoning config
+└── .github/workflows/ci.yml # CI for Python CLI
 ```
 
 ## 📖 Usage Examples
@@ -227,7 +291,9 @@ For detailed examples, see the portable Skill at [`fns-skill/SKILL.md`](fns-skil
 ## 🧪 Running Tests
 
 ```bash
-python -m unittest discover -s tests -v
+python -m pytest fns_cli/tests/ -v
+# or
+python -m unittest discover -s fns_cli/tests -v
 ```
 
 ## 🔗 Related Projects

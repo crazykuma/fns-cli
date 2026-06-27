@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-06-27
+### Architecture
+- **Restructured from single-file `fns.py` into `fns_cli/` package** for better maintainability
+  - Base modules: `api.py`, `config.py`, `hashing.py`, `formatting.py`
+  - Command modules: `note.py`, `folder.py`, `file.py`, `share.py`, `setting.py`, `backup.py`, `vault.py`, `storage.py`, `git_sync.py`, `admin.py`
+  - Entry point: `fns_cli.main:cli`
+  - All existing commands preserved; `fns` CLI interface unchanged
+
+### Fixed
+- `replace` command: Fixed field name mismatch (`count` -> `matchCount`) — previously always showed `?`
+- `frontmatter` command: Fixed request body field names (`frontmatter`/`removeKeys` -> `updates`/`remove`)
+- `append` command: Optimized — removed redundant GET before POST; now directly POSTs incremental content
+
+### Added
+- **Storage Management** (5 commands):
+  - `storage-list` — List all storage configurations
+  - `storage-add` — Add a new storage configuration (localfs/s3/oss/r2/minio/webdav)
+  - `storage-remove` — Remove a storage configuration by ID
+  - `storage-validate` — Validate storage connection
+  - `storage-enabled` — List enabled storage types
+- **Git Sync Management** (7 commands):
+  - `git-sync list` / `add` / `remove` / `validate` / `run` / `clean` / `history`
+- **Admin Operations** (5 commands):
+  - `admin-info` — Show system and runtime info
+  - `admin-restart` — Gracefully restart server
+  - `admin-upgrade` — Trigger server upgrade
+  - `admin-gc` — Trigger manual GC
+  - `admin-ws-clients` — List connected WebSocket clients
+
+### Tests
+- **New test suite**: 26 unit tests covering API layer, formatting, hashing, config, and bug fixes
+- Run: `python -m pytest fns_cli/tests/ -v` or `python -m unittest discover -s fns_cli/tests -v`
+
 ## [0.8.2] - 2026-05-19
 ### Fixed
 - Fix `fns login` by adding `X-Client: WebGui` and `User-Agent` headers to match server v3.0.3 login restriction
