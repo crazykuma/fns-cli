@@ -77,7 +77,9 @@ def file_download(path, output_path):
 @click.option("--page", default=1, help="Page number")
 @click.option("--page-size", "page_size", default=20, help="Items per page")
 @click.option("--recycle", is_flag=True, help="Show deleted files in recycle bin")
-def file_list(keyword, page, page_size, recycle):
+@click.option("--sort-by", "sort_by", default="", help="Sort field: path, size, updatedAt, createdAt")
+@click.option("--sort-order", "sort_order", default="", help="Sort order: asc or desc")
+def file_list(keyword, page, page_size, recycle, sort_by, sort_order):
     """List files/attachments. Optionally filter by keyword."""
     vault = require_vault()
     params = {"vault": vault, "page": page, "pageSize": page_size}
@@ -85,6 +87,10 @@ def file_list(keyword, page, page_size, recycle):
         params["keyword"] = keyword
     if recycle:
         params["isRecycle"] = "true"
+    if sort_by:
+        params["sortBy"] = sort_by
+    if sort_order:
+        params["sortOrder"] = sort_order
 
     data = curl_request("GET", "/files", params=params)
     if _ctx.get("json_output"):

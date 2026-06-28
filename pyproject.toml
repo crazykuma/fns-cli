@@ -1,6 +1,6 @@
 [project]
 name = "fns-cli"
-version = "0.9.0"
+version = "0.9.1"
 description = "Fast Note Sync CLI - Interact with your Obsidian FNS service from terminal"
 readme = "README.md"
 license = {text = "MIT"}

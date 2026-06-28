@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-06-27
+### Removed
+- Deleted deprecated files: `fns.py`, `setup.py`, `requirements.txt`, `tests/test_fns.py`
+
+### Changed
+- `storage-add`: Replaced `--config` JSON option with individual options (`--endpoint`, `--region`, `--bucket`, `--account-id`, `--access-key`, `--secret-key`, `--path`, `--url`, `--user`, `--password`, `--disabled`)
+- `storage-validate`: Same individual option improvements
+- `file-list`: Added `--sort-by` and `--sort-order` options for file list sorting
+
 ## [0.9.0] - 2026-06-27
 ### Architecture
 - **Restructured from single-file `fns.py` into `fns_cli/` package** for better maintainability

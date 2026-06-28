@@ -20,7 +20,7 @@ from fns_cli.api import curl_request, handle_response
 from fns_cli.hashing import compute_path_hash
 from pathlib import Path
 
-__version__ = "0.9.0"
+__version__ = "0.9.1"
 
 
 @click.group()
